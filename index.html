@@ -1,0 +1,2343 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jadwal Guru Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#150a10;
+  --bg-2:#1c0e16;
+  --panel:#241019;
+  --panel-2:#2c131f;
+  --panel-3:#341726;
+  --border:#4a2436;
+  --border-soft:#3a1d2c;
+  --rose:#c23c66;
+  --rose-light:#e8829f;
+  --rose-deep:#8c2748;
+  --gold:#cba15a;
+  --gold-soft:#e0c58c;
+  --text:#f5e6ec;
+  --muted:#b892a1;
+  --muted-2:#8a6472;
+  --danger:#ef4a63;
+  --warn:#f0bd4b;
+  --good:#5db98a;
+  --shadow: 0 18px 40px -12px rgba(0,0,0,0.55);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background: radial-gradient(1200px 700px at 15% -10%, #2a1220 0%, transparent 60%),
+              radial-gradient(1000px 600px at 110% 10%, #24101d 0%, transparent 55%),
+              var(--bg);
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  min-height:100vh;
+}
+h1,h2,h3,.display{font-family:'Playfair Display',serif;}
+.mono{font-family:'JetBrains Mono',monospace;}
+button{font-family:inherit;}
+::selection{background:var(--rose-deep);color:#fff;}
+
+/* ---------- Topbar ---------- */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:22px 36px;
+  border-bottom:1px solid var(--border-soft);
+  background:linear-gradient(180deg, rgba(36,16,25,0.9), rgba(28,14,22,0.4));
+  position:sticky;top:0;z-index:50;
+  backdrop-filter: blur(6px);
+}
+.brand{display:flex;align-items:baseline;gap:12px;}
+.brand h1{font-size:26px;margin:0;font-weight:700;letter-spacing:.3px;
+  color:var(--text);
+}
+.brand .accent{color:var(--rose-light);font-style:italic;}
+.brand .by{font-size:12px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;}
+.steps{display:flex;gap:6px;align-items:center;}
+.step-pill{
+  padding:7px 14px;border-radius:999px;font-size:12.5px;color:var(--muted-2);
+  border:1px solid var(--border-soft); white-space:nowrap;
+  display:flex;align-items:center;gap:7px;
+}
+.step-pill .n{
+  width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+  font-size:10.5px;background:var(--panel-3);color:var(--muted-2);font-weight:600;
+}
+.step-pill.active{color:var(--text);border-color:var(--rose);background:rgba(194,60,102,0.12);}
+.step-pill.active .n{background:var(--rose);color:#fff;}
+.step-pill.done{color:var(--gold-soft);border-color:rgba(203,161,90,0.4);}
+.step-pill.done .n{background:var(--gold);color:#2a1608;}
+.step-arrow{color:var(--border);font-size:11px;}
+
+.filebar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 36px;
+  background:rgba(28,14,22,0.55);
+  border-bottom:1px solid var(--border-soft);
+  position:sticky;top:73px;z-index:49;
+  backdrop-filter: blur(6px);
+}
+.filebar-status{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);}
+.filebar-status .dot{width:8px;height:8px;border-radius:50%;background:var(--muted-2);}
+.filebar-status .dot.saved{background:var(--good);box-shadow:0 0 8px var(--good);}
+.filebar-actions{display:flex;gap:8px;}
+
+/* ---------- Layout ---------- */
+.wrap{max-width:1180px;margin:0 auto;padding:34px 28px 80px;}
+.wrap.wide{max-width:1500px;}
+.card{
+  background:linear-gradient(160deg, var(--panel), var(--panel-2));
+  border:1px solid var(--border-soft);
+  border-radius:16px;
+  padding:28px 30px;
+  box-shadow:var(--shadow);
+  margin-bottom:22px;
+}
+.card h2{margin:0 0 4px;font-size:22px;color:var(--text);}
+.card .sub{color:var(--muted);font-size:13.5px;margin:0 0 22px;line-height:1.5;}
+label{font-size:12.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px;}
+input[type=text],input[type=number],select{
+  width:100%;background:var(--bg-2);border:1px solid var(--border);color:var(--text);
+  padding:10px 12px;border-radius:9px;font-size:14.5px;outline:none;transition:border-color .15s;
+}
+input:focus,select:focus{border-color:var(--rose);}
+input.invalid{border-color:var(--danger)!important;}
+.field{margin-bottom:14px;}
+.row-flex{display:flex;gap:12px;flex-wrap:wrap;}
+.row-flex > *{flex:1;min-width:120px;}
+
+.btn{
+  border:1px solid var(--rose);background:linear-gradient(180deg,var(--rose),var(--rose-deep));
+  color:#fff;padding:11px 22px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;
+  transition:transform .12s, box-shadow .12s; box-shadow:0 8px 20px -8px rgba(194,60,102,.7);
+}
+.btn:hover{transform:translateY(-1px);}
+.btn:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none;}
+.btn.ghost{
+  background:transparent;border:1px solid var(--border);color:var(--muted);box-shadow:none;
+}
+.btn.ghost:hover{border-color:var(--rose-light);color:var(--rose-light);}
+.btn.gold{
+  background:linear-gradient(180deg,var(--gold-soft),var(--gold));color:#2a1608;border:none;
+  box-shadow:0 8px 20px -8px rgba(203,161,90,.7);
+}
+.btn.danger{background:linear-gradient(180deg,#ef6478,var(--danger));border:none;}
+.btn.sm{padding:6px 12px;font-size:12.5px;border-radius:8px;}
+.icon-btn{
+  background:transparent;border:1px solid var(--border);color:var(--muted);
+  width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.icon-btn:hover{border-color:var(--danger);color:var(--danger);}
+.actions{display:flex;justify-content:space-between;margin-top:26px;}
+.actions .right{display:flex;gap:10px;}
+
+/* class name grid */
+.class-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-top:14px;}
+.class-chip-input{position:relative;}
+.class-chip-input .idx{
+  position:absolute;left:10px;top:9px;font-size:11px;color:var(--muted-2);font-family:'JetBrains Mono',monospace;
+}
+.class-chip-input input{padding-left:30px;}
+
+/* day checkboxes */
+.day-check-grid{display:flex;gap:10px;flex-wrap:wrap;}
+.day-check{
+  border:1px solid var(--border);border-radius:10px;padding:10px 16px;cursor:pointer;
+  display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);
+  background:var(--bg-2); user-select:none;
+}
+.day-check.checked{border-color:var(--rose);color:var(--text);background:rgba(194,60,102,.12);}
+.day-check input{display:none;}
+.day-check .box{width:15px;height:15px;border-radius:4px;border:1px solid var(--border);}
+.day-check.checked .box{background:var(--rose);border-color:var(--rose);}
+
+/* day tabs */
+.day-tabs{display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap;}
+.day-tab{
+  padding:9px 16px;border-radius:9px 9px 0 0;font-size:13.5px;cursor:pointer;color:var(--muted-2);
+  border:1px solid transparent;border-bottom:2px solid transparent;
+}
+.day-tab.active{color:var(--rose-light);border-bottom-color:var(--rose-light);background:rgba(194,60,102,.08);}
+
+.rowcfg-table{width:100%;border-collapse:collapse;margin-bottom:16px;}
+.rowcfg-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-2);padding:6px 8px;border-bottom:1px solid var(--border-soft);}
+.rowcfg-table td{padding:6px 8px;vertical-align:middle;}
+.rowcfg-table tr:hover td{background:rgba(255,255,255,.02);}
+.rowcfg-table select, .rowcfg-table input{padding:7px 9px;font-size:13.5px;}
+.badge-num{
+  width:26px;height:26px;border-radius:50%;background:var(--rose-deep);color:#fff;
+  display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;
+}
+.badge-dash{
+  width:26px;height:26px;border-radius:50%;background:var(--panel-3);color:var(--muted-2);
+  display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;
+}
+.copy-box{
+  border:1px dashed var(--border);border-radius:12px;padding:16px 18px;margin-top:8px;background:rgba(255,255,255,.015);
+}
+.copy-box .title{font-size:13px;color:var(--gold-soft);margin-bottom:10px;font-weight:600;}
+.chk-list{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.chk-pill{
+  border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12.5px;cursor:pointer;color:var(--muted);
+}
+.chk-pill.on{border-color:var(--gold);color:var(--gold-soft);background:rgba(203,161,90,.1);}
+
+/* teacher setup */
+.teacher-list{display:flex;flex-direction:column;gap:10px;margin-bottom:24px;}
+.teacher-card{
+  border:1px solid var(--border-soft);border-radius:12px;padding:14px 18px;
+  display:flex;align-items:center;justify-content:space-between;background:var(--bg-2);
+}
+.teacher-card .who{display:flex;align-items:center;gap:14px;}
+.teacher-card .code{
+  font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--panel-3);color:var(--gold-soft);
+  padding:4px 9px;border-radius:7px;
+}
+.teacher-card .subs{font-size:12px;color:var(--muted);margin-top:3px;}
+.subrow{
+  display:grid;grid-template-columns: 2fr 1.4fr .8fr 40px;gap:10px;align-items:end;margin-bottom:10px;
+}
+.subrow .rm{margin-bottom:2px;}
+.empty-hint{color:var(--muted-2);font-size:13px;padding:18px 0;text-align:center;border:1px dashed var(--border-soft);border-radius:10px;}
+
+/* Scheduler layout */
+.sched-layout{display:grid;grid-template-columns:1fr 340px;gap:22px;align-items:start;}
+.sched-table-wrap{overflow:auto;border-radius:14px;border:1px solid var(--border-soft);max-height:78vh;box-shadow:var(--shadow);}
+table.sched{border-collapse:collapse;width:100%;background:var(--panel);}
+table.sched th, table.sched td{border:1px solid var(--border-soft);font-size:12.5px;}
+table.sched thead th{
+  position:sticky;top:0;background:var(--panel-3);color:var(--rose-light);z-index:5;
+  padding:10px 8px;font-weight:700;text-align:center;white-space:nowrap;
+}
+table.sched thead th.corner{background:var(--panel-2);z-index:6;}
+td.daycell{
+  background:var(--panel-3);color:var(--gold-soft);font-weight:700;text-align:center;
+  writing-mode:vertical-rl;text-orientation:mixed;padding:10px 4px;font-family:'Playfair Display',serif;letter-spacing:.05em;
+  position:sticky;left:0;z-index:4;
+}
+td.sescell{
+  background:var(--panel-2);text-align:center;color:var(--muted);font-family:'JetBrains Mono',monospace;
+  position:sticky;left:38px;z-index:4;min-width:34px;
+}
+td.timecell{
+  background:var(--panel-2);text-align:center;color:var(--muted);white-space:nowrap;font-size:11.5px;
+  position:sticky;left:76px;z-index:4;padding:6px 8px;
+}
+td.timecell .lbl{display:block;color:var(--muted-2);font-size:10.5px;font-style:italic;}
+td.blockcell{
+  background:repeating-linear-gradient(135deg, #241019 0 8px, #2a131f 8px 16px);
+  min-width:56px;
+}
+td.classcell{min-width:64px;height:38px;text-align:center;cursor:pointer;position:relative;padding:0;}
+td.classcell:hover{outline:2px solid var(--rose-light);outline-offset:-2px;}
+td.classcell .fill{
+  width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:#fff;font-weight:700;font-size:11.5px;line-height:1.15;
+}
+td.classcell .fill small{font-weight:500;opacity:.85;font-size:9.5px;}
+td.classcell.empty:hover::after{
+  content:"+";color:var(--rose-light);font-size:16px;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+}
+td.classcell.conflict{ outline:2px solid var(--danger); outline-offset:-2px; animation:pulseAlert 1.1s infinite;}
+@keyframes pulseAlert{0%,100%{box-shadow: inset 0 0 0 999px rgba(239,74,99,0);}50%{box-shadow: inset 0 0 0 999px rgba(239,74,99,0.28);}}
+td.classcell.joined::before{
+  content:"⛓";position:absolute;top:2px;right:3px;font-size:8px;color:var(--gold-soft);
+}
+
+/* Side panel */
+.side-card{position:sticky;top:100px;}
+.hours-meter{
+  background:var(--bg-2);border:1px solid var(--border-soft);border-radius:10px;padding:10px 12px;margin-top:6px;
+}
+.hours-meter .bar{height:6px;border-radius:4px;background:var(--panel-3);overflow:hidden;margin-top:6px;}
+.hours-meter .bar > div{height:100%;background:linear-gradient(90deg,var(--rose),var(--gold));}
+.assign-list{display:flex;flex-direction:column;gap:8px;margin-top:10px;max-height:240px;overflow:auto;}
+.assign-item{
+  border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer;background:var(--bg-2);
+}
+.assign-item.active{border-color:var(--rose);background:rgba(194,60,102,.14);}
+.assign-item .top{display:flex;justify-content:space-between;font-size:13px;font-weight:600;}
+.assign-item .rem{font-size:11.5px;color:var(--muted);margin-top:3px;}
+.assign-item .rem b{color:var(--gold-soft);}
+.assign-item.full{opacity:.45;}
+.blockpick{display:flex;gap:8px;margin-top:8px;}
+.blockpick label{
+  flex:1;text-align:center;border:1px solid var(--border);border-radius:9px;padding:9px 0;cursor:pointer;
+  font-size:13px;color:var(--muted);text-transform:none;letter-spacing:0;
+}
+.blockpick input{display:none;}
+.blockpick input:checked + span{color:#fff;}
+.blockpick label.sel{border-color:var(--rose);background:rgba(194,60,102,.16);color:var(--text);}
+.blockpick label.disabled{opacity:.3;cursor:not-allowed;}
+
+.conflict-box{
+  margin-top:18px;border-radius:12px;padding:2px;
+  background:linear-gradient(120deg, var(--danger), var(--warn));
+}
+.conflict-box.dup{
+  background:linear-gradient(120deg, var(--rose-deep), var(--gold));
+}
+.conflict-box.dup h3{color:var(--gold-soft);}
+.conflict-box .inner{
+  background:#1c0d10;border-radius:11px;padding:14px 16px;
+}
+.conflict-box h3{margin:0 0 10px;font-size:13.5px;color:var(--warn);display:flex;align-items:center;gap:8px;}
+.conflict-item{
+  border-top:1px solid rgba(255,255,255,.06);padding:10px 0;font-size:12.5px;color:var(--text);
+}
+.conflict-item:first-child{border-top:none;}
+.conflict-item .txt b{color:var(--danger);}
+.conflict-item .txt .g{color:var(--gold-soft);}
+.conflict-item .act{margin-top:7px;display:flex;gap:8px;}
+.no-conflict{color:var(--good);font-size:13px;display:flex;align-items:center;gap:8px;margin-top:14px;}
+
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}
+.legend .lg{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);}
+.legend .sw{width:12px;height:12px;border-radius:3px;}
+
+/* Jam guru belum lengkap — panel di atas tabel jadwal */
+.hours-summary-card{padding:20px 24px;}
+.hs-list{display:flex;flex-wrap:wrap;gap:8px;}
+.hs-chip{
+  --chip-color:#c23c66;
+  display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:10px;
+  padding:8px 12px;background:var(--bg-2);cursor:pointer;font-size:12.5px;color:var(--muted);
+  transition:border-color .12s, background .12s, transform .12s;
+}
+.hs-chip:hover{border-color:var(--chip-color);transform:translateY(-1px);}
+.hs-chip.active{border-color:var(--chip-color);background:rgba(203,161,90,.12);}
+.hs-chip .sw{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+.hs-chip .lbl{color:var(--text);font-weight:600;}
+.hs-chip .cls{color:var(--gold-soft);font-family:'JetBrains Mono',monospace;font-size:11px;}
+.hs-chip .rem{
+  background:var(--panel-3);color:var(--warn);border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;
+  font-family:'JetBrains Mono',monospace;
+}
+.hs-chip.active .rem{color:var(--gold-soft);}
+
+/* ---------- Full Preview Stage ---------- */
+.preview-pick-list{display:flex;flex-direction:column;gap:6px;margin-top:10px;max-height:52vh;overflow:auto;padding-right:2px;}
+.preview-pick-group{margin-bottom:4px;}
+.preview-pick-group .grp-title{
+  display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;
+  padding:8px 2px 4px;
+}
+.preview-pick-group .grp-title .sw{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+.preview-pick-btn{
+  border:1px solid var(--border);border-radius:9px;padding:8px 12px;cursor:pointer;background:var(--bg-2);
+  display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px;color:var(--muted);
+  transition:border-color .12s, background .12s, opacity .12s;
+}
+.preview-pick-btn:hover{border-color:var(--rose-light);}
+.preview-pick-btn .lbl{color:var(--text);font-weight:600;}
+.preview-pick-btn .cls{color:var(--gold-soft);font-family:'JetBrains Mono',monospace;font-size:11px;}
+.preview-pick-btn.sel{border-color:var(--rose);background:rgba(194,60,102,.16);}
+.preview-pick-btn.sel .lbl{color:var(--rose-light);}
+.preview-clear-row{display:flex;justify-content:flex-end;margin-top:10px;}
+td.classcell.pv-dim{opacity:.22;filter:grayscale(.55);}
+td.classcell.pv-hot{
+  outline:3px solid var(--gold);outline-offset:-3px;box-shadow:0 0 16px -2px rgba(203,161,90,.75);
+  position:relative;z-index:2;
+}
+td.classcell.pv-hot .fill{box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);}
+.preview-empty-note{color:var(--muted-2);font-size:12.5px;text-align:center;padding:14px 0;border:1px dashed var(--border-soft);border-radius:10px;margin-top:10px;}
+
+/* ---------- Rekap Guru (teacher distribution) Stage ---------- */
+.distrib-daybar-list{display:flex;flex-direction:column;gap:12px;margin-top:14px;}
+.distrib-daybar-item .lbl{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-bottom:5px;}
+.distrib-daybar-item .lbl b{color:var(--gold-soft);font-family:'JetBrains Mono',monospace;}
+.distrib-daybar-item .bar{height:8px;border-radius:5px;background:var(--panel-3);overflow:hidden;}
+.distrib-daybar-item .bar > div{height:100%;border-radius:5px;transition:width .2s;}
+.distrib-empty-list{margin-top:18px;}
+.distrib-empty-list .sec-title{font-size:11px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;}
+.distrib-empty-day{font-size:12.5px;color:var(--muted);margin-bottom:10px;line-height:1.5;}
+.distrib-empty-day b{color:var(--text);}
+.distrib-empty-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px;}
+.distrib-empty-tag{background:var(--bg-2);border:1px solid var(--border);border-radius:7px;padding:3px 9px;font-size:11.5px;color:var(--muted-2);font-family:'JetBrains Mono',monospace;}
+td.classcell.dist-mine .fill{box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);}
+
+.toast-wrap{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:10px;z-index:200;}
+.toast{
+  background:var(--panel-3);border:1px solid var(--border);color:var(--text);padding:12px 18px;border-radius:10px;
+  box-shadow:var(--shadow);font-size:13.5px;max-width:340px;border-left:4px solid var(--rose);
+  animation:slideIn .25s ease;
+}
+.toast.err{border-left-color:var(--danger);}
+.toast.ok{border-left-color:var(--good);}
+@keyframes slideIn{from{opacity:0;transform:translateX(12px);}to{opacity:1;transform:translateX(0);}}
+
+footer.copyright{
+  text-align:center;padding:26px 0 40px;color:var(--muted-2);font-size:12px;letter-spacing:.04em;
+}
+footer.copyright .heart{color:var(--rose-light);}
+
+/* ---------- Save/Load Online modal ---------- */
+.modal-backdrop{
+  position:fixed;inset:0;background:rgba(10,4,8,.72);backdrop-filter:blur(2px);
+  z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.modal-card{
+  background:linear-gradient(160deg, var(--panel), var(--panel-2));border:1px solid var(--border-soft);
+  border-radius:16px;padding:26px 28px;box-shadow:var(--shadow);max-width:460px;width:100%;
+  max-height:82vh;overflow:auto;
+}
+.modal-card h3{margin:0 0 6px;font-size:19px;color:var(--text);font-family:'Playfair Display',serif;}
+.modal-card .sub{color:var(--muted);font-size:13px;margin:0 0 16px;line-height:1.5;}
+.modal-close-row{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
+.online-list{display:flex;flex-direction:column;gap:8px;max-height:320px;overflow:auto;margin-top:4px;}
+.online-item{
+  border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:flex;
+  justify-content:space-between;align-items:center;gap:10px;background:var(--bg-2);
+}
+.online-item .meta{display:flex;flex-direction:column;gap:2px;overflow:hidden;}
+.online-item .nm{font-weight:600;font-size:13.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.online-item .ts{font-size:11px;color:var(--muted-2);font-family:'JetBrains Mono',monospace;}
+.online-item .act-grp{display:flex;gap:6px;flex-shrink:0;}
+.online-empty, .online-loading{color:var(--muted-2);font-size:13px;text-align:center;padding:18px 0;}
+
+@media (max-width:980px){
+  .sched-layout{grid-template-columns:1fr;}
+  .side-card{position:static;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <h1>Jadwal Guru <span class="accent">Generator</span></h1>
+    <span class="by">by Kristiyanto</span>
+  </div>
+  <div class="steps" id="stepsNav"></div>
+</div>
+
+<div class="filebar">
+  <div class="filebar-status">
+    <span class="dot" id="saveDot"></span>
+    <span id="saveStatus">Belum disimpan</span>
+  </div>
+  <div class="filebar-actions">
+    <button class="btn ghost sm" id="btnGasConfig" title="Atur sambungan Simpan/Muat Online">⚙ Online</button>
+    <button class="btn ghost sm" id="btnLoadOnline">☁️⬇ Muat Online</button>
+    <button class="btn ghost sm" id="btnSaveOnline">☁️⬆ Simpan Online</button>
+    <button class="btn ghost sm" id="btnLoad">📂 Muat Progress</button>
+    <button class="btn ghost sm" id="btnSaveAs">🗂 Simpan Sebagai…</button>
+    <button class="btn gold sm" id="btnSave">💾 Simpan</button>
+  </div>
+</div>
+<input type="file" id="loadFileInput" accept="application/json,.json" style="display:none;">
+
+<div id="root"></div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<footer class="copyright">© 2026 Jadwal Guru Generator <span class="heart">♦</span> by Kristiyanto. Seluruh hak cipta dilindungi.</footer>
+
+<script>
+/* =========================================================
+   STATE
+========================================================= */
+const DAY_NAMES = ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu","Minggu"];
+const TEACHER_COLORS = ["#c23c66","#7c5cbf","#3f8fc4","#5db98a","#cba15a","#e0714f","#6a7fdb","#c25f9a","#4fa8a0","#b0793f"];
+
+const state = {
+  step: 1,
+  classes: [],            // {id, name}
+  days: [],               // {id, name, rows:[{id,type:'session'|'other',label,start,end}]}
+  teachers: [],           // {code, name, color, subjects:[{id, subject, classId, hours, used}]}
+  schedule: {},           // schedule[dayId][rowIndex][classId] = {teacherCode, subject, assignId, batchId}
+  joinGroups: {},         // joinGroups["dayId_rowIndex"] = [ [classId,classId,...], ... ]
+  activeTeacherCode: null,
+  activeAssignId: null,
+  blockSize: 1,
+  activeDayTab: null,
+  previewSelection: null,  // assignId of the guru+mapel+kelas currently spotlighted on the full preview stage
+  distribusiTeacherCode: null, // teacher code currently selected on the "Rekap Guru" distribution stage
+};
+
+let uidCounter = 1;
+function uid(prefix){ return prefix + (uidCounter++); }
+
+/* ---- time helpers (format jj.mm, e.g. 07.00) ---- */
+function timeToMinutes(str){
+  if(!str) return null;
+  const m = /^(\d{1,2})\.(\d{2})$/.exec(String(str).trim());
+  if(!m) return null;
+  return parseInt(m[1])*60 + parseInt(m[2]);
+}
+function minutesToTime(mins){
+  mins = ((mins%1440)+1440)%1440;
+  const h = Math.floor(mins/60), m = mins%60;
+  return String(h).padStart(2,'0')+'.'+String(m).padStart(2,'0');
+}
+function isValidTimeStr(str){ return timeToMinutes(str)!==null; }
+// Returns array parallel to day.rows: [{start,end}] computed by cascading durations from day.startTime
+function computeDayTimes(day){
+  let cur = timeToMinutes(day.startTime);
+  if(cur===null) cur = 420; // default 07.00
+  return day.rows.map(row=>{
+    const dur = Math.max(0, parseInt(row.duration)||0);
+    const start = cur, end = cur + dur;
+    cur = end;
+    return {start: minutesToTime(start), end: minutesToTime(end)};
+  });
+}
+
+/* =========================================================
+   SAVE / LOAD PROGRESS (local file, e.g. move it into your
+   Google Drive folder to back it up — see notes in chat)
+========================================================= */
+let currentFileHandle = null;
+let currentFileName = null;
+
+function serializeState(){
+  return JSON.stringify({
+    _format: 'jadwal-guru-generator-save',
+    _version: 1,
+    savedAt: new Date().toISOString(),
+    uidCounter,
+    state: {
+      step: state.step,
+      classes: state.classes,
+      days: state.days,
+      teachers: state.teachers,
+      schedule: state.schedule,
+      joinGroups: state.joinGroups,
+      activeTeacherCode: state.activeTeacherCode,
+      activeAssignId: state.activeAssignId,
+      blockSize: state.blockSize,
+      activeDayTab: state.activeDayTab,
+      previewSelection: state.previewSelection,
+      distribusiTeacherCode: state.distribusiTeacherCode,
+      _activeDayNames: state._activeDayNames
+    }
+  }, null, 2);
+}
+
+function applyLoadedData(obj){
+  if(!obj || typeof obj!=='object' || !obj.state || obj._format!=='jadwal-guru-generator-save'){
+    toast('File tidak dikenali sebagai file save Jadwal Guru Generator.', 'err');
+    return false;
+  }
+  delete state._copyTargets;
+  delete state._tempClasses;
+  Object.keys(state).forEach(k=>{ if(!(k in obj.state)) delete state[k]; });
+  Object.assign(state, obj.state);
+  if(obj.uidCounter) uidCounter = Math.max(uidCounter, obj.uidCounter);
+  state.days.forEach(d=>{
+    if(!state.schedule[d.id]) state.schedule[d.id] = d.rows.map(()=>({}));
+    while(state.schedule[d.id].length < d.rows.length) state.schedule[d.id].push({});
+  });
+  return true;
+}
+
+function downloadBlob(text, filename){
+  const blob = new Blob([text], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+
+function updateSaveStatus(){
+  const el = document.getElementById('saveStatus');
+  const dot = document.getElementById('saveDot');
+  if(el) el.textContent = currentFileName ? `Tersimpan sebagai "${currentFileName}.json"` : 'Belum disimpan';
+  if(dot) dot.classList.toggle('saved', !!currentFileName);
+}
+
+async function doSaveAs(){
+  const data = serializeState();
+  if(window.showSaveFilePicker){
+    try{
+      const handle = await window.showSaveFilePicker({
+        suggestedName: (currentFileName || 'jadwal-guru') + '.json',
+        types: [{description:'Jadwal Guru Save File', accept:{'application/json':['.json']}}]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(data);
+      await writable.close();
+      currentFileHandle = handle;
+      currentFileName = handle.name.replace(/\.json$/i,'');
+      updateSaveStatus();
+      toast(`Progress disimpan sebagai "${handle.name}".`, 'ok');
+    }catch(e){ if(e.name!=='AbortError'){ toast('Gagal menyimpan file.', 'err'); } }
+  } else {
+    const name = prompt('Simpan sebagai (nama file, tanpa .json):', currentFileName || 'jadwal-guru');
+    if(!name) return;
+    downloadBlob(data, name+'.json');
+    currentFileName = name;
+    currentFileHandle = null;
+    updateSaveStatus();
+    toast(`File "${name}.json" diunduh. Pindahkan ke folder Google Drive Anda agar tersimpan di cloud.`, 'ok');
+  }
+}
+
+async function doSaveQuick(){
+  if(currentFileHandle){
+    try{
+      const writable = await currentFileHandle.createWritable();
+      await writable.write(serializeState());
+      await writable.close();
+      toast(`Progress tersimpan ke "${currentFileHandle.name}".`, 'ok');
+      updateSaveStatus();
+    }catch(e){ toast('Gagal menyimpan, coba "Simpan Sebagai…".', 'err'); }
+  } else {
+    doSaveAs();
+  }
+}
+
+async function doLoad(){
+  if(window.showOpenFilePicker){
+    try{
+      const [handle] = await window.showOpenFilePicker({
+        types: [{description:'Jadwal Guru Save File', accept:{'application/json':['.json']}}]
+      });
+      const file = await handle.getFile();
+      const text = await file.text();
+      const obj = JSON.parse(text);
+      if(applyLoadedData(obj)){
+        currentFileHandle = handle;
+        currentFileName = handle.name.replace(/\.json$/i,'');
+        updateSaveStatus();
+        render();
+        toast(`Progress "${handle.name}" berhasil dimuat.`, 'ok');
+      }
+    }catch(e){ if(e.name!=='AbortError'){ toast('Gagal memuat file (format tidak sesuai).', 'err'); } }
+  } else {
+    document.getElementById('loadFileInput').click();
+  }
+}
+
+function handleFallbackFileInput(e){
+  const file = e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const obj = JSON.parse(reader.result);
+      if(applyLoadedData(obj)){
+        currentFileName = file.name.replace(/\.json$/i,'');
+        currentFileHandle = null;
+        updateSaveStatus();
+        render();
+        toast(`Progress "${file.name}" berhasil dimuat.`, 'ok');
+      }
+    }catch(err){ toast('File tidak valid atau rusak.', 'err'); }
+  };
+  reader.readAsText(file);
+}
+
+function toast(msg, type){
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = 'toast' + (type ? ' '+type : '');
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, 3200);
+}
+
+/* =========================================================
+   SAVE / LOAD ONLINE
+   Progress dikirim ke sebuah Google Spreadsheet lewat Web App
+   Google Apps Script (lihat file gas-backend.gs terpisah untuk
+   kode backend & panduan deploy). Setiap "slot" simpanan diberi
+   nama oleh pengguna dan disimpan sebagai satu baris di sheet.
+========================================================= */
+const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbwGHlgb7wZOOUNCHXj_TqyEYee85h9UqePjJqDUGXwJMAKTNkeSg_HpxpWhu5O4b8nX/exec';
+function getGasUrl(){
+  try{ return localStorage.getItem('jgg_gas_url') || DEFAULT_GAS_URL; }catch(e){ return state._gasUrlMem || DEFAULT_GAS_URL; }
+}
+function setGasUrl(v){
+  try{ localStorage.setItem('jgg_gas_url', v); }catch(e){ state._gasUrlMem = v; }
+}
+function getGasToken(){
+  try{ return localStorage.getItem('jgg_gas_token') || ''; }catch(e){ return state._gasTokenMem || ''; }
+}
+function setGasToken(v){
+  try{ localStorage.setItem('jgg_gas_token', v); }catch(e){ state._gasTokenMem = v; }
+}
+
+// Generic dark-themed modal helper, matches the app's look.
+function showModal(title, bodyEl, opts){
+  opts = opts || {};
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  const card = document.createElement('div');
+  card.className = 'modal-card';
+  const h = document.createElement('h3'); h.textContent = title;
+  card.appendChild(h);
+  card.appendChild(bodyEl);
+  const row = document.createElement('div');
+  row.className = 'modal-close-row';
+  if(opts.okLabel){
+    const okBtn = document.createElement('button');
+    okBtn.className = 'btn sm gold';
+    okBtn.textContent = opts.okLabel;
+    okBtn.onclick = ()=>{
+      const result = opts.onOk ? opts.onOk() : true;
+      if(result !== false) close();
+    };
+    row.appendChild(okBtn);
+  }
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'btn ghost sm';
+  closeBtn.textContent = opts.cancelLabel || 'Tutup';
+  closeBtn.onclick = ()=>close();
+  row.appendChild(closeBtn);
+  card.appendChild(row);
+  backdrop.appendChild(card);
+  backdrop.addEventListener('click', (e)=>{ if(e.target===backdrop) close(); });
+  document.body.appendChild(backdrop);
+  function close(){ backdrop.remove(); }
+  return {close, card};
+}
+
+function openGasConfigModal(){
+  const body = document.createElement('div');
+  const escAttr = s => String(s||'').replace(/"/g,'&quot;');
+  body.innerHTML = `
+    <p class="sub">Deploy <b>gas-backend.gs</b> sebagai Web App di Google Apps Script, lalu tempel URL hasil deploy-nya di sini. Kode Rahasia bersifat opsional, cukup samakan dengan nilai <span class="mono">SECRET_TOKEN</span> di script jika Anda mengisinya.</p>
+    <div class="field">
+      <label>URL Web App GAS</label>
+      <input type="text" id="cfgGasUrl" placeholder="https://script.google.com/macros/s/xxxx/exec" value="${escAttr(getGasUrl())}">
+    </div>
+    <div class="field">
+      <label>Kode Rahasia (opsional)</label>
+      <input type="text" id="cfgGasToken" placeholder="Kosongkan jika tidak dipakai" value="${escAttr(getGasToken())}">
+    </div>
+  `;
+  showModal('⚙ Atur Sambungan Online', body, {
+    okLabel: 'Simpan Pengaturan',
+    onOk: ()=>{
+      setGasUrl(body.querySelector('#cfgGasUrl').value.trim());
+      setGasToken(body.querySelector('#cfgGasToken').value.trim());
+      toast('Pengaturan sambungan online disimpan.', 'ok');
+      return true;
+    }
+  });
+}
+
+async function doSaveOnline(){
+  const url = getGasUrl();
+  if(!url){ toast('Atur dulu URL Web App GAS lewat tombol "⚙ Online".', 'err'); openGasConfigModal(); return; }
+  const suggested = currentFileName || 'jadwal-guru';
+  const name = prompt('Simpan online sebagai slot bernama:\n(jika nama sudah ada, isinya akan ditimpa)', suggested);
+  if(!name || !name.trim()) return;
+  toast('Mengirim data ke server online…', 'ok');
+  try{
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'}, // text/plain menghindari CORS preflight ke GAS
+      body: JSON.stringify({ action:'save', token:getGasToken(), name:name.trim(), data:serializeState() })
+    });
+    const json = await res.json();
+    if(json.ok){
+      toast(`Progress berhasil disimpan online sebagai "${name.trim()}".`, 'ok');
+    } else {
+      toast('Gagal simpan online: ' + (json.error || 'kesalahan tidak diketahui'), 'err');
+    }
+  }catch(e){
+    toast('Gagal terhubung ke server online. Cek URL GAS & koneksi internet.', 'err');
+  }
+}
+
+async function doLoadOnlinePrompt(){
+  const url = getGasUrl();
+  if(!url){ toast('Atur dulu URL Web App GAS lewat tombol "⚙ Online".', 'err'); openGasConfigModal(); return; }
+  const body = document.createElement('div');
+  body.innerHTML = `<div class="online-loading">Memuat daftar simpanan online…</div>`;
+  const modal = showModal('☁ Muat Progress Online', body, {});
+
+  const token = getGasToken();
+  try{
+    const res = await fetch(url + '?action=list' + (token ? ('&token=' + encodeURIComponent(token)) : ''));
+    const json = await res.json();
+    if(!json.ok){
+      body.innerHTML = `<div class="online-empty">Gagal memuat daftar: ${json.error || 'kesalahan tidak diketahui'}</div>`;
+      return;
+    }
+    if(!json.items || json.items.length === 0){
+      body.innerHTML = `<div class="online-empty">Belum ada progress yang tersimpan online.</div>`;
+      return;
+    }
+    body.innerHTML = '';
+    const list = document.createElement('div');
+    list.className = 'online-list';
+    json.items.forEach(item=>{
+      const row = document.createElement('div');
+      row.className = 'online-item';
+      const savedDate = item.savedAt ? new Date(item.savedAt) : null;
+      row.innerHTML = `<div class="meta">
+          <span class="nm">${item.name}</span>
+          <span class="ts">${savedDate ? savedDate.toLocaleString('id-ID') : ''}</span>
+        </div>
+        <div class="act-grp">
+          <button class="btn sm gold" data-act="load">Muat</button>
+          <button class="icon-btn" data-act="del" title="Hapus dari server">✕</button>
+        </div>`;
+      row.querySelector('[data-act=load]').onclick = async ()=>{
+        modal.close();
+        await loadOnlineByName(item.name);
+      };
+      row.querySelector('[data-act=del]').onclick = async ()=>{
+        if(!confirm(`Hapus data online "${item.name}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+        try{
+          const dres = await fetch(url, {
+            method:'POST',
+            headers:{'Content-Type':'text/plain;charset=utf-8'},
+            body: JSON.stringify({action:'delete', token, name:item.name})
+          });
+          const djson = await dres.json();
+          if(djson.ok){ toast('Data online dihapus.', 'ok'); row.remove(); }
+          else toast('Gagal menghapus: ' + (djson.error||'kesalahan tidak diketahui'), 'err');
+        }catch(e){ toast('Gagal terhubung ke server online.', 'err'); }
+      };
+      list.appendChild(row);
+    });
+    body.appendChild(list);
+  }catch(e){
+    body.innerHTML = `<div class="online-empty">Gagal terhubung ke server online. Cek URL GAS & koneksi internet.</div>`;
+  }
+}
+
+async function loadOnlineByName(name){
+  const url = getGasUrl();
+  const token = getGasToken();
+  try{
+    const res = await fetch(url + '?action=load&name=' + encodeURIComponent(name) + (token ? ('&token=' + encodeURIComponent(token)) : ''));
+    const json = await res.json();
+    if(!json.ok){ toast('Gagal memuat: ' + (json.error || 'kesalahan tidak diketahui'), 'err'); return; }
+    const obj = JSON.parse(json.data);
+    if(applyLoadedData(obj)){
+      currentFileName = name;
+      currentFileHandle = null;
+      updateSaveStatus();
+      render();
+      toast(`Progress online "${name}" berhasil dimuat.`, 'ok');
+    }
+  }catch(e){
+    toast('Gagal memuat data online (format tidak sesuai atau koneksi gagal).', 'err');
+  }
+}
+
+/* =========================================================
+   STEP NAV
+========================================================= */
+const STEP_LABELS = ["Kelas","Hari & Sesi","Guru","Susun Jadwal","Preview Lengkap","Rekap Guru"];
+function renderStepsNav(){
+  const nav = document.getElementById('stepsNav');
+  nav.innerHTML = '';
+  STEP_LABELS.forEach((label, i)=>{
+    const n = i+1;
+    if(i>0){
+      const arrow = document.createElement('span');
+      arrow.className='step-arrow'; arrow.textContent='›';
+      nav.appendChild(arrow);
+    }
+    const pill = document.createElement('div');
+    pill.className = 'step-pill' + (n===state.step?' active':'') + (n<state.step?' done':'');
+    pill.innerHTML = `<span class="n">${n<state.step?'✓':n}</span> ${label}`;
+    if(n < state.step){
+      pill.style.cursor='pointer';
+      pill.onclick = ()=>{ state.step = n; render(); };
+    }
+    nav.appendChild(pill);
+  });
+}
+
+/* =========================================================
+   ROOT RENDER
+========================================================= */
+function render(){
+  renderStepsNav();
+  const root = document.getElementById('root');
+  root.innerHTML = '';
+  if(state.step===1) root.appendChild(renderStep1());
+  else if(state.step===2) root.appendChild(renderStep2());
+  else if(state.step===3) root.appendChild(renderStep3());
+  else if(state.step===4) root.appendChild(renderStep4());
+  else if(state.step===5) root.appendChild(renderStep5());
+  else if(state.step===6) root.appendChild(renderStep6());
+}
+
+/* =========================================================
+   STEP 1 : CLASSES
+========================================================= */
+function renderStep1(){
+  const wrap = document.createElement('div');
+  wrap.className = 'wrap';
+
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <h2>Pengaturan Kelas</h2>
+    <p class="sub">Tentukan berapa banyak kelas yang akan dijadwalkan, lalu beri nama masing-masing kelas (contoh: 10A, 11P2, 12P3).</p>
+    <div class="field" style="max-width:220px;">
+      <label>Jumlah Kelas</label>
+      <input type="number" id="classCount" min="1" max="60" value="${state.classes.length || 6}">
+    </div>
+    <div class="class-grid" id="classGrid"></div>
+  `;
+  wrap.appendChild(card);
+
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+  actions.innerHTML = `<div></div><div class="right"><button class="btn" id="next1">Lanjut ke Hari &amp; Sesi →</button></div>`;
+  wrap.appendChild(actions);
+
+  function buildGrid(){
+    const count = Math.max(1, parseInt(wrap.querySelector('#classCount').value || '1'));
+    const grid = wrap.querySelector('#classGrid');
+    grid.innerHTML = '';
+    const existing = state.classes.slice();
+    const newClasses = [];
+    for(let i=0;i<count;i++){
+      const prev = existing[i];
+      const id = prev ? prev.id : uid('cls');
+      const name = prev ? prev.name : '';
+      newClasses.push({id, name});
+      const box = document.createElement('div');
+      box.className = 'class-chip-input';
+      box.innerHTML = `<span class="idx">${i+1}</span><input type="text" placeholder="Nama kelas" data-idx="${i}" value="${name}">`;
+      grid.appendChild(box);
+    }
+    grid.querySelectorAll('input').forEach(inp=>{
+      inp.addEventListener('input', ()=>{ newClasses[inp.dataset.idx].name = inp.value; });
+    });
+    state._tempClasses = newClasses;
+  }
+  wrap.querySelector('#classCount').addEventListener('input', buildGrid);
+  buildGrid();
+
+  wrap.querySelector('#next1').addEventListener('click', ()=>{
+    const cls = state._tempClasses || [];
+    if(cls.some(c=>!c.name.trim())){ toast('Isi nama semua kelas terlebih dahulu.', 'err'); return; }
+    const names = cls.map(c=>c.name.trim().toLowerCase());
+    if(new Set(names).size !== names.length){ toast('Ada nama kelas yang duplikat.', 'err'); return; }
+    state.classes = cls.map(c=>({id:c.id, name:c.name.trim()}));
+    state.step = 2;
+    render();
+  });
+
+  return wrap;
+}
+
+/* =========================================================
+   STEP 2 : DAYS & SESSIONS
+========================================================= */
+function renderStep2(){
+  const wrap = document.createElement('div');
+  wrap.className = 'wrap';
+
+  // ensure activeDays initialized
+  if(!state._activeDayNames){
+    state._activeDayNames = state.days.length ? state.days.map(d=>d.name) : ["Senin","Selasa","Rabu","Kamis","Jumat"];
+  }
+
+  const card1 = document.createElement('div');
+  card1.className = 'card';
+  card1.innerHTML = `
+    <h2>Hari Aktif</h2>
+    <p class="sub">Pilih hari-hari yang digunakan dalam satu minggu pembelajaran.</p>
+    <div class="day-check-grid" id="dayCheckGrid"></div>
+  `;
+  wrap.appendChild(card1);
+
+  const grid = card1.querySelector('#dayCheckGrid');
+  DAY_NAMES.forEach(dn=>{
+    const checked = state._activeDayNames.includes(dn);
+    const chip = document.createElement('label');
+    chip.className = 'day-check' + (checked?' checked':'');
+    chip.innerHTML = `<span class="box"></span>${dn}`;
+    chip.onclick = (e)=>{
+      e.preventDefault();
+      const idx = state._activeDayNames.indexOf(dn);
+      if(idx>=0){ state._activeDayNames.splice(idx,1); } else { state._activeDayNames.push(dn); }
+      syncDaysFromActiveNames();
+      renderInner();
+    };
+    grid.appendChild(chip);
+  });
+
+  const card2 = document.createElement('div');
+  card2.className = 'card';
+  wrap.appendChild(card2);
+
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+  actions.innerHTML = `<div><button class="btn ghost" id="back2">← Kembali</button></div><div class="right"><button class="btn" id="next2">Lanjut ke Data Guru →</button></div>`;
+  wrap.appendChild(actions);
+
+  function syncDaysFromActiveNames(){
+    const ordered = DAY_NAMES.filter(dn=>state._activeDayNames.includes(dn));
+    const newDays = ordered.map(name=>{
+      const existing = state.days.find(d=>d.name===name);
+      return existing || {id: uid('day'), name, startTime: '07.00', rows: []};
+    });
+    state.days = newDays;
+    if(!state.activeDayTab || !ordered.includes(state.days.find(d=>d.id===state.activeDayTab)?.name)){
+      state.activeDayTab = state.days[0] ? state.days[0].id : null;
+    }
+  }
+  syncDaysFromActiveNames();
+
+  function renderInner(){
+    // re-render checkbox row states
+    grid.querySelectorAll('.day-check').forEach((chip,i)=>{
+      const dn = DAY_NAMES[i];
+      chip.className = 'day-check' + (state._activeDayNames.includes(dn)?' checked':'');
+    });
+
+    card2.innerHTML = '';
+    if(state.days.length===0){
+      card2.innerHTML = `<div class="empty-hint">Pilih minimal satu hari untuk mulai mengatur sesi.</div>`;
+      return;
+    }
+    const h = document.createElement('h2'); h.textContent = 'Struktur Sesi per Hari';
+    const p = document.createElement('p'); p.className='sub';
+    p.textContent = 'Susun urutan baris untuk setiap hari: sesi pembelajaran (bernomor otomatis) atau baris non-sesi seperti istirahat/doa (ditandai "-"). Cukup atur jam mulai sesi paling awal dan durasi (menit) tiap baris — jam berikutnya dihitung otomatis.';
+    card2.appendChild(h); card2.appendChild(p);
+
+    const tabs = document.createElement('div');
+    tabs.className = 'day-tabs';
+    state.days.forEach(d=>{
+      const t = document.createElement('div');
+      t.className = 'day-tab' + (state.activeDayTab===d.id ? ' active':'');
+      t.textContent = d.name;
+      t.onclick = ()=>{ state.activeDayTab = d.id; renderInner(); };
+      tabs.appendChild(t);
+    });
+    card2.appendChild(tabs);
+
+    const day = state.days.find(d=>d.id===state.activeDayTab);
+    if(!day) return;
+    if(day.startTime===undefined) day.startTime = '07.00';
+
+    const startField = document.createElement('div');
+    startField.className = 'field';
+    startField.style.maxWidth = '220px';
+    startField.innerHTML = `<label>Jam Mulai Sesi Paling Awal (${day.name})</label><input type="text" id="dayStartTime" placeholder="07.00" value="${day.startTime}">`;
+    card2.appendChild(startField);
+    const startInput = startField.querySelector('#dayStartTime');
+    const markStartValidity = ()=> startInput.classList.toggle('invalid', !isValidTimeStr(startInput.value));
+    startInput.oninput = ()=>{ day.startTime = startInput.value; markStartValidity(); refreshTimesColumn(); };
+    markStartValidity();
+
+    const table = document.createElement('table');
+    table.className = 'rowcfg-table';
+    table.innerHTML = `<thead><tr><th style="width:50px;">No.</th><th style="width:120px;">Jenis</th><th>Label</th><th style="width:130px;">Durasi (menit)</th><th style="width:150px;">Jam (otomatis)</th><th style="width:36px;"></th></tr></thead>`;
+    const tbody = document.createElement('tbody');
+    table.appendChild(tbody);
+
+    function refreshTimesColumn(){
+      const times = computeDayTimes(day);
+      tbody.querySelectorAll('tr').forEach((tr, i)=>{
+        const cell = tr.querySelector('.autotime');
+        if(cell) cell.textContent = `${times[i].start} - ${times[i].end}`;
+      });
+    }
+
+    let sessionCounter = 0;
+    day.rows.forEach((row, idx)=>{
+      if(row.type==='session') sessionCounter++;
+      const tr = document.createElement('tr');
+
+      const tdNum = document.createElement('td');
+      tdNum.innerHTML = row.type==='session' ? `<span class="badge-num">${sessionCounter}</span>` : `<span class="badge-dash">–</span>`;
+      tr.appendChild(tdNum);
+
+      const tdType = document.createElement('td');
+      const sel = document.createElement('select');
+      sel.innerHTML = `<option value="session" ${row.type==='session'?'selected':''}>Sesi</option><option value="other" ${row.type==='other'?'selected':''}>Non-Sesi ( - )</option>`;
+      sel.onchange = ()=>{ row.type = sel.value; renderInner(); };
+      tdType.appendChild(sel);
+      tr.appendChild(tdType);
+
+      const tdLabel = document.createElement('td');
+      const labelInp = document.createElement('input');
+      labelInp.type='text';
+      labelInp.placeholder = row.type==='session' ? '(otomatis "jam ke-'+sessionCounter+'")' : 'contoh: istirahat 1, doa';
+      labelInp.value = row.label || '';
+      labelInp.oninput = ()=>{ row.label = labelInp.value; };
+      tdLabel.appendChild(labelInp);
+      tr.appendChild(tdLabel);
+
+      const tdDur = document.createElement('td');
+      const durInp = document.createElement('input');
+      durInp.type='number'; durInp.min='0'; durInp.step='1';
+      durInp.placeholder = row.type==='session' ? '45' : '15';
+      durInp.value = row.duration!==undefined ? row.duration : '';
+      durInp.oninput = ()=>{ row.duration = parseInt(durInp.value)||0; refreshTimesColumn(); };
+      tdDur.appendChild(durInp);
+      tr.appendChild(tdDur);
+
+      const tdAuto = document.createElement('td');
+      tdAuto.className = 'autotime mono';
+      tdAuto.style.color = 'var(--gold-soft)';
+      tr.appendChild(tdAuto);
+
+      const tdRm = document.createElement('td');
+      const rmBtn = document.createElement('button');
+      rmBtn.className='icon-btn'; rmBtn.textContent='✕';
+      rmBtn.onclick = ()=>{ day.rows.splice(idx,1); renderInner(); };
+      tdRm.appendChild(rmBtn);
+      tr.appendChild(tdRm);
+
+      tbody.appendChild(tr);
+    });
+    refreshTimesColumn();
+
+    card2.appendChild(table);
+
+    const addBtns = document.createElement('div');
+    addBtns.style.display='flex'; addBtns.style.gap='10px'; addBtns.style.marginBottom='18px';
+    const addSession = document.createElement('button');
+    addSession.className='btn ghost sm'; addSession.textContent='+ Tambah Baris Sesi';
+    addSession.onclick = ()=>{ day.rows.push({id:uid('row'), type:'session', label:'', duration:45}); renderInner(); };
+    const addOther = document.createElement('button');
+    addOther.className='btn ghost sm'; addOther.textContent='+ Tambah Baris Non-Sesi (Istirahat/Doa)';
+    addOther.onclick = ()=>{ day.rows.push({id:uid('row'), type:'other', label:'istirahat', duration:15}); renderInner(); };
+    addBtns.appendChild(addSession); addBtns.appendChild(addOther);
+    card2.appendChild(addBtns);
+
+    // copy box
+    const others = state.days.filter(d=>d.id!==day.id);
+    if(others.length){
+      const copyBox = document.createElement('div');
+      copyBox.className = 'copy-box';
+      copyBox.innerHTML = `<div class="title">Terapkan struktur "${day.name}" ke hari lain</div>`;
+      const chkList = document.createElement('div');
+      chkList.className = 'chk-list';
+      if(!state._copyTargets) state._copyTargets = {};
+      others.forEach(od=>{
+        const pill = document.createElement('div');
+        const on = !!(state._copyTargets[day.id] && state._copyTargets[day.id][od.id]);
+        pill.className = 'chk-pill' + (on?' on':'');
+        pill.textContent = od.name;
+        pill.onclick = ()=>{
+          state._copyTargets[day.id] = state._copyTargets[day.id]||{};
+          state._copyTargets[day.id][od.id] = !on;
+          renderInner();
+        };
+        chkList.appendChild(pill);
+      });
+      copyBox.appendChild(chkList);
+      const applyBtn = document.createElement('button');
+      applyBtn.className='btn gold sm';
+      applyBtn.textContent='Terapkan ke Hari Terpilih';
+      applyBtn.onclick = ()=>{
+        const targets = state._copyTargets[day.id] || {};
+        const chosen = others.filter(od=>targets[od.id]);
+        if(!chosen.length){ toast('Pilih minimal satu hari tujuan.', 'err'); return; }
+        chosen.forEach(od=>{
+          od.startTime = day.startTime;
+          od.rows = day.rows.map(r=>({id:uid('row'), type:r.type, label:r.label, duration:r.duration}));
+        });
+        toast(`Struktur & jam mulai diterapkan ke ${chosen.map(c=>c.name).join(', ')}.`, 'ok');
+        renderInner();
+      };
+      copyBox.appendChild(applyBtn);
+      card2.appendChild(copyBox);
+    }
+  }
+
+  renderInner();
+
+  wrap.querySelector('#back2').addEventListener('click', ()=>{ state.step=1; render(); });
+  wrap.querySelector('#next2').addEventListener('click', ()=>{
+    if(state.days.length===0){ toast('Pilih minimal satu hari aktif.', 'err'); return; }
+    for(const d of state.days){
+      if(d.rows.length===0){ toast(`Hari ${d.name} belum memiliki baris sesi.`, 'err'); return; }
+      if(!d.rows.some(r=>r.type==='session')){ toast(`Hari ${d.name} minimal harus punya 1 baris sesi pembelajaran.`, 'err'); return; }
+      if(!isValidTimeStr(d.startTime)){ toast(`Jam mulai pada hari ${d.name} tidak valid (gunakan format jj.mm, contoh 07.00).`, 'err'); return; }
+      for(const r of d.rows){
+        if(!r.duration || r.duration<=0){ toast(`Durasi pada salah satu baris di hari ${d.name} belum diisi / harus lebih dari 0 menit.`, 'err'); return; }
+      }
+    }
+    // init schedule containers
+    state.days.forEach(d=>{
+      if(!state.schedule[d.id]) state.schedule[d.id] = d.rows.map(()=>({}));
+      else {
+        while(state.schedule[d.id].length < d.rows.length) state.schedule[d.id].push({});
+      }
+    });
+    state.step = 3;
+    render();
+  });
+
+  return wrap;
+}
+
+/* =========================================================
+   STEP 3 : TEACHERS
+========================================================= */
+function renderStep3(){
+  const wrap = document.createElement('div');
+  wrap.className = 'wrap';
+
+  const listCard = document.createElement('div');
+  listCard.className = 'card';
+  const listHead = document.createElement('div');
+  listHead.style.display='flex'; listHead.style.justifyContent='space-between'; listHead.style.alignItems='flex-start'; listHead.style.gap='12px'; listHead.style.flexWrap='wrap';
+  listHead.innerHTML = `
+    <div>
+      <h2 style="margin:0;">Daftar Guru</h2>
+      <p class="sub" style="margin:4px 0 0;">Guru yang sudah tersimpan. Anda dapat mengedit, menghapus, atau mengimpor/mengekspor data di sini.</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0;">
+      <button class="btn ghost sm" id="btnImportTeachers">⬆ Import Data Guru</button>
+      <button class="btn ghost sm" id="btnExportTeachers">⬇ Export Data Guru</button>
+    </div>
+  `;
+  listCard.appendChild(listHead);
+
+  const listWrap = document.createElement('div');
+  listWrap.className = 'teacher-list';
+  listWrap.style.marginTop = '18px';
+  if(state.teachers.length===0){
+    listWrap.innerHTML = `<div class="empty-hint">Belum ada guru yang ditambahkan.</div>`;
+  } else {
+    sortedTeachers().forEach(t=>{
+      const totalHours = t.subjects.reduce((s,su)=>s+su.hours,0);
+      const totalUsed = t.subjects.reduce((s,su)=>s+su.used,0);
+      const row = document.createElement('div');
+      row.className = 'teacher-card';
+      row.innerHTML = `
+        <div class="who">
+          <span class="code" style="background:${t.color}22;color:${t.color};">#${t.code}</span>
+          <div>
+            <div style="font-weight:600;">${t.name}</div>
+            <div class="subs">${t.subjects.map(s=>`${s.subject} · ${classNameById(s.classId)} (${s.hours} jam)`).join(' &nbsp;|&nbsp; ')} — total ${totalHours} jam</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          ${totalUsed>0 ? `<span class="mono" style="font-size:11px;color:var(--muted-2);">${totalUsed} jam terjadwal</span>` : ''}
+          <button class="icon-btn" data-act="edit" title="Edit guru ini">✎</button>
+          <button class="icon-btn" data-act="del" title="Hapus guru ini">✕</button>
+        </div>
+      `;
+      row.querySelector('[data-act=del]').onclick = ()=>{
+        if(!confirm(`Hapus guru ${t.name}? Semua jadwal yang sudah diisi untuk guru ini juga akan dihapus.`)) return;
+        clearTeacherSchedule(t.code);
+        state.teachers = state.teachers.filter(x=>x.code!==t.code);
+        if(state.activeTeacherCode===t.code){
+          state.activeTeacherCode = state.teachers[0]?.code || null;
+          state.activeAssignId = null;
+        }
+        render();
+      };
+      row.querySelector('[data-act=edit]').onclick = ()=>{
+        state._editingTeacherCode = t.code;
+        render();
+      };
+      listWrap.appendChild(row);
+    });
+  }
+  listCard.appendChild(listWrap);
+  wrap.appendChild(listCard);
+
+  const editing = state._editingTeacherCode!=null ? state.teachers.find(t=>t.code===state._editingTeacherCode) : null;
+
+  const formCard = document.createElement('div');
+  formCard.className = 'card';
+  formCard.innerHTML = editing
+    ? `<h2>✎ Edit Guru — ${editing.name}</h2><p class="sub">Perbarui data guru. <b style="color:var(--warn);">Perhatian:</b> menyimpan perubahan akan mengosongkan seluruh sel jadwal yang sudah diisi untuk guru ini di tahap "Susun Jadwal", karena jam/mata pelajaran mungkin berubah.</p>`
+    : `<h2>Tambah Guru</h2><p class="sub">Masukkan kode &amp; nama guru, lalu tambahkan satu atau lebih mata pelajaran beserta kelas dan jumlah jamnya.</p>`;
+  const form = document.createElement('div');
+  form.className = 'row-flex';
+  const nextCode = editing ? editing.code : suggestNextCode();
+  const escAttr = s => String(s||'').replace(/"/g,'&quot;');
+  form.innerHTML = `
+    <div class="field"><label>Kode Guru</label><input type="number" id="tCode" value="${nextCode}"></div>
+    <div class="field" style="flex:2;"><label>Nama Guru</label><input type="text" id="tName" placeholder="Contoh: Bpk. Ian" value="${editing ? escAttr(editing.name) : ''}"></div>
+  `;
+  formCard.appendChild(form);
+
+  const subHeader = document.createElement('div');
+  subHeader.innerHTML = `<label style="margin-top:10px;">Mata Pelajaran &amp; Kelas</label>`;
+  formCard.appendChild(subHeader);
+
+  const subList = document.createElement('div');
+  formCard.appendChild(subList);
+
+  let subjectRows = editing
+    ? editing.subjects.map(s=>({id:uid('sr'), subject:s.subject, classId:s.classId, hours:s.hours}))
+    : [{id:uid('sr'), subject:'', classId: state.classes[0]?.id||'', hours:1}];
+  if(subjectRows.length===0){
+    subjectRows = [{id:uid('sr'), subject:'', classId: state.classes[0]?.id||'', hours:1}];
+  }
+
+  function renderSubRows(){
+    subList.innerHTML = '';
+    subjectRows.forEach((sr, idx)=>{
+      const r = document.createElement('div');
+      r.className = 'subrow';
+      r.innerHTML = `
+        <div><input type="text" placeholder="Mata pelajaran (contoh: Matematika)" data-f="subject" value="${sr.subject}"></div>
+        <div><select data-f="classId">${state.classes.map(c=>`<option value="${c.id}" ${c.id===sr.classId?'selected':''}>${c.name}</option>`).join('')}</select></div>
+        <div><input type="number" min="1" data-f="hours" value="${sr.hours}" placeholder="Jam"></div>
+        <div class="rm"><button class="icon-btn">✕</button></div>
+      `;
+      r.querySelector('[data-f=subject]').oninput = e=>sr.subject=e.target.value;
+      r.querySelector('[data-f=classId]').onchange = e=>sr.classId=e.target.value;
+      r.querySelector('[data-f=hours]').oninput = e=>sr.hours=parseInt(e.target.value||'0');
+      r.querySelector('.rm button').onclick = ()=>{
+        if(subjectRows.length===1){ toast('Minimal satu baris mata pelajaran.', 'err'); return; }
+        subjectRows.splice(idx,1); renderSubRows();
+      };
+      subList.appendChild(r);
+    });
+  }
+  renderSubRows();
+
+  const addSubBtn = document.createElement('button');
+  addSubBtn.className = 'btn ghost sm';
+  addSubBtn.textContent = '+ Tambah Mapel/Kelas';
+  addSubBtn.style.margin = '4px 0 18px';
+  addSubBtn.onclick = ()=>{ subjectRows.push({id:uid('sr'), subject:'', classId: state.classes[0]?.id||'', hours:1}); renderSubRows(); };
+  formCard.appendChild(addSubBtn);
+
+  const btnRow = document.createElement('div');
+  btnRow.style.display='flex'; btnRow.style.gap='10px';
+
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn';
+  saveBtn.textContent = editing ? 'Simpan Perubahan' : 'Simpan Guru';
+  saveBtn.onclick = ()=>{
+    const code = parseInt(form.querySelector('#tCode').value);
+    const name = form.querySelector('#tName').value.trim();
+    if(!code){ toast('Kode guru wajib diisi.', 'err'); return; }
+    if(state.teachers.some(t=>t.code===code && (!editing || t.code!==editing.code))){
+      toast('Kode guru sudah digunakan oleh guru lain.', 'err'); return;
+    }
+    if(!name){ toast('Nama guru wajib diisi.', 'err'); return; }
+    if(subjectRows.some(sr=>!sr.subject.trim() || !sr.classId || !sr.hours || sr.hours<1)){
+      toast('Lengkapi semua baris mata pelajaran (nama, kelas, jam > 0).', 'err'); return;
+    }
+    const newSubjects = subjectRows.map(sr=>({id:uid('asg'), subject:sr.subject.trim(), classId:sr.classId, hours:sr.hours, used:0}));
+
+    if(editing){
+      clearTeacherSchedule(editing.code);
+      const oldCode = editing.code;
+      editing.code = code;
+      editing.name = name;
+      editing.subjects = newSubjects;
+      if(state.activeTeacherCode===oldCode) state.activeTeacherCode = code;
+      state.activeAssignId = null;
+      state._editingTeacherCode = null;
+      toast(`Guru ${name} berhasil diperbarui. Jadwal lama guru ini sudah dikosongkan.`, 'ok');
+    } else {
+      const color = TEACHER_COLORS[state.teachers.length % TEACHER_COLORS.length];
+      state.teachers.push({ code, name, color, subjects: newSubjects });
+      toast(`Guru ${name} tersimpan.`, 'ok');
+    }
+    render();
+  };
+  btnRow.appendChild(saveBtn);
+
+  if(editing){
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'btn ghost';
+    cancelBtn.textContent = 'Batalkan Edit';
+    cancelBtn.onclick = ()=>{ state._editingTeacherCode = null; render(); };
+    btnRow.appendChild(cancelBtn);
+  }
+  formCard.appendChild(btnRow);
+
+  wrap.appendChild(formCard);
+
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+  actions.innerHTML = `<div><button class="btn ghost" id="back3">← Kembali</button></div><div class="right"><button class="btn" id="next3">Lanjut ke Susun Jadwal →</button></div>`;
+  wrap.appendChild(actions);
+
+  wrap.querySelector('#back3').addEventListener('click', ()=>{ state._editingTeacherCode=null; state.step=2; render(); });
+  wrap.querySelector('#next3').addEventListener('click', ()=>{
+    if(state.teachers.length===0){ toast('Tambahkan minimal satu guru terlebih dahulu.', 'err'); return; }
+    if(!state.activeTeacherCode) state.activeTeacherCode = state.teachers[0].code;
+    state._editingTeacherCode = null;
+    state.step = 4;
+    render();
+  });
+
+  listHead.querySelector('#btnExportTeachers').addEventListener('click', exportTeachersData);
+  listHead.querySelector('#btnImportTeachers').addEventListener('click', doImportTeachersFile);
+
+  return wrap;
+}
+
+function suggestNextCode(){
+  if(state.teachers.length===0) return 1;
+  return Math.max(...state.teachers.map(t=>t.code)) + 1;
+}
+function sortedTeachers(){
+  return state.teachers.slice().sort((a,b)=>a.code-b.code);
+}
+function classNameById(id){
+  const c = state.classes.find(c=>c.id===id);
+  return c ? c.name : '?';
+}
+function clearTeacherSchedule(teacherCode){
+  state.days.forEach(day=>{
+    day.rows.forEach((row, rowIndex)=>{
+      const cellRow = state.schedule[day.id] && state.schedule[day.id][rowIndex];
+      if(!cellRow) return;
+      state.classes.forEach(cls=>{
+        const cell = cellRow[cls.id];
+        if(cell && cell.teacherCode===teacherCode){ delete cellRow[cls.id]; }
+      });
+    });
+  });
+}
+
+function exportTeachersData(){
+  if(state.teachers.length===0){ toast('Belum ada data guru untuk diekspor.', 'err'); return; }
+  const payload = {
+    _format: 'jadwal-guru-teachers-export',
+    _version: 1,
+    exportedAt: new Date().toISOString(),
+    teachers: state.teachers.map(t=>({
+      code: t.code,
+      name: t.name,
+      color: t.color,
+      subjects: t.subjects.map(s=>({
+        subject: s.subject,
+        className: classNameById(s.classId),
+        hours: s.hours
+      }))
+    }))
+  };
+  downloadBlob(JSON.stringify(payload, null, 2), 'data-guru.json');
+  toast('Data guru berhasil diekspor.', 'ok');
+}
+
+function importTeachersFromObj(obj){
+  if(!obj || obj._format!=='jadwal-guru-teachers-export' || !Array.isArray(obj.teachers)){
+    toast('File tidak dikenali sebagai file Data Guru.', 'err');
+    return;
+  }
+  let added=0, skippedCode=0, skippedNoClass=0;
+  obj.teachers.forEach(t=>{
+    if(!t.code || !t.name) return;
+    if(state.teachers.some(x=>x.code===t.code)){ skippedCode++; return; }
+    const subjects = (t.subjects||[]).map(s=>{
+      const cls = state.classes.find(c=>c.name===s.className);
+      if(!cls) return null;
+      return {id:uid('asg'), subject:(s.subject||'').trim(), classId:cls.id, hours: parseInt(s.hours)||1, used:0};
+    }).filter(Boolean);
+    if((t.subjects||[]).length && subjects.length===0){ skippedNoClass++; return; }
+    const color = t.color || TEACHER_COLORS[state.teachers.length % TEACHER_COLORS.length];
+    state.teachers.push({code: t.code, name: t.name.trim(), color, subjects});
+    added++;
+  });
+  let msg = `${added} guru berhasil diimpor.`;
+  if(skippedCode) msg += ` ${skippedCode} dilewati (kode guru sudah dipakai).`;
+  if(skippedNoClass) msg += ` ${skippedNoClass} dilewati (nama kelas tidak cocok dengan kelas saat ini).`;
+  toast(msg, added>0 ? 'ok' : 'err');
+  render();
+}
+
+function doImportTeachersFile(){
+  const inp = document.createElement('input');
+  inp.type='file'; inp.accept='application/json,.json';
+  inp.onchange = ()=>{
+    const file = inp.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{
+        const obj = JSON.parse(reader.result);
+        importTeachersFromObj(obj);
+      }catch(e){ toast('File tidak valid atau rusak.', 'err'); }
+    };
+    reader.readAsText(file);
+  };
+  inp.click();
+}
+/* =========================================================
+   STEP 4 : SCHEDULER
+========================================================= */
+function renderStep4(){
+  const wrap = document.createElement('div');
+  wrap.className = 'wrap wide';
+
+  const summaryBar = document.createElement('div');
+  summaryBar.className = 'card hours-summary-card';
+  wrap.appendChild(summaryBar);
+
+  const layout = document.createElement('div');
+  layout.className = 'sched-layout';
+  wrap.appendChild(layout);
+
+  const tableWrap = document.createElement('div');
+  tableWrap.className = 'sched-table-wrap';
+  layout.appendChild(tableWrap);
+
+  const side = document.createElement('div');
+  side.className = 'card side-card';
+  layout.appendChild(side);
+
+  const backBtn = document.createElement('div');
+  backBtn.className = 'actions';
+  backBtn.style.margin = '18px 0 0';
+  backBtn.innerHTML = `<div><button class="btn ghost" id="back4">← Kembali ke Data Guru</button></div><div class="right"><button class="btn gold" id="toPreview4">Preview Lengkap →</button></div>`;
+  wrap.appendChild(backBtn);
+
+  function buildSummary(){
+    summaryBar.innerHTML = '';
+    const incomplete = [];
+    sortedTeachers().forEach(t=>{
+      t.subjects.forEach(sub=>{
+        const remaining = sub.hours - sub.used;
+        if(remaining > 0) incomplete.push({teacher:t, sub, remaining});
+      });
+    });
+
+    const head = document.createElement('div');
+    head.style.display = 'flex';
+    head.style.alignItems = 'center';
+    head.style.justifyContent = 'space-between';
+    head.innerHTML = `<h2 style="font-size:17px;margin:0;">⏳ Jam Guru Belum Lengkap</h2>`;
+    summaryBar.appendChild(head);
+
+    if(incomplete.length === 0){
+      const p = document.createElement('p');
+      p.className = 'sub'; p.style.margin = '8px 0 0';
+      p.innerHTML = `<span style="color:var(--good);">✓ Semua jam mengajar sudah terisi penuh.</span>`;
+      summaryBar.appendChild(p);
+      return;
+    }
+
+    const p = document.createElement('p');
+    p.className = 'sub'; p.style.margin = '4px 0 12px';
+    p.textContent = `${incomplete.length} kombinasi guru & mapel masih punya jam tersisa. Klik salah satu untuk langsung menjadikannya aktif di panel penjadwalan.`;
+    summaryBar.appendChild(p);
+
+    const list = document.createElement('div');
+    list.className = 'hs-list';
+    incomplete.forEach(({teacher, sub, remaining})=>{
+      const chip = document.createElement('div');
+      const isActive = state.activeTeacherCode===teacher.code && state.activeAssignId===sub.id;
+      chip.className = 'hs-chip' + (isActive ? ' active' : '');
+      chip.style.setProperty('--chip-color', teacher.color);
+      chip.innerHTML = `<span class="sw" style="background:${teacher.color};"></span>
+        <span class="lbl">#${teacher.code} ${teacher.name} — ${sub.subject}</span>
+        <span class="cls">${classNameById(sub.classId)}</span>
+        <span class="rem">${remaining} jam</span>`;
+      chip.onclick = ()=>{
+        state.activeTeacherCode = teacher.code;
+        state.activeAssignId = sub.id;
+        buildSide();
+        buildSummary();
+      };
+      list.appendChild(chip);
+    });
+    summaryBar.appendChild(list);
+  }
+
+  function buildTable(){
+    tableWrap.innerHTML = '';
+    const table = document.createElement('table');
+    table.className = 'sched';
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    headRow.innerHTML = `<th class="corner" style="left:0;position:sticky;">Hari</th><th class="corner" style="left:38px;position:sticky;">Sesi</th><th class="corner" style="left:76px;position:sticky;">Jam</th>`;
+    state.classes.forEach(c=>{ headRow.innerHTML += `<th>${c.name}</th>`; });
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    const conflicts = computeConflicts();
+    const conflictKey = (dayId,row,classId)=> conflicts.some(c=>c.dayId===dayId && c.rowIndex===row && c.classIds.includes(classId));
+
+    state.days.forEach(day=>{
+      const dayTimes = computeDayTimes(day);
+      day.rows.forEach((row, rowIndex)=>{
+        const tr = document.createElement('tr');
+        if(rowIndex===0){
+          const td = document.createElement('td');
+          td.className='daycell'; td.rowSpan = day.rows.length; td.textContent = day.name;
+          tr.appendChild(td);
+        }
+        let sessionNum = 0;
+        for(let i=0;i<=rowIndex;i++){ if(day.rows[i].type==='session') sessionNum++; }
+
+        const tdSes = document.createElement('td');
+        tdSes.className='sescell';
+        tdSes.textContent = row.type==='session' ? sessionNum : '-';
+        tr.appendChild(tdSes);
+
+        const tdTime = document.createElement('td');
+        tdTime.className='timecell';
+        const t = dayTimes[rowIndex];
+        const timeTxt = t ? `${t.start} - ${t.end}` : '—';
+        tdTime.innerHTML = `${timeTxt}${row.label ? `<span class="lbl">${row.label}</span>` : ''}`;
+        tr.appendChild(tdTime);
+
+        if(row.type==='other'){
+          const td = document.createElement('td');
+          td.className='blockcell'; td.colSpan = state.classes.length;
+          tr.appendChild(td);
+        } else {
+          state.classes.forEach(cls=>{
+            const td = document.createElement('td');
+            const cell = (state.schedule[day.id] && state.schedule[day.id][rowIndex]) ? state.schedule[day.id][rowIndex][cls.id] : null;
+            const isConflict = conflictKey(day.id, rowIndex, cls.id);
+            const isJoined = isCellJoined(day.id, rowIndex, cls.id);
+            td.className = 'classcell' + (cell?'':' empty') + (isConflict?' conflict':'') + (isJoined?' joined':'');
+            if(cell){
+              const t = state.teachers.find(t=>t.code===cell.teacherCode);
+              const fill = document.createElement('div');
+              fill.className='fill';
+              fill.style.background = t ? t.color : '#555';
+              fill.innerHTML = `${t?('#'+t.code):'?'}<small>${cell.subject}</small>`;
+              td.appendChild(fill);
+              td.title = `${t?t.name:'?'} — ${cell.subject} (${cls.name})`;
+            }
+            td.onclick = ()=> onCellClick(day.id, rowIndex, cls.id);
+            tr.appendChild(td);
+          });
+        }
+        tbody.appendChild(tr);
+      });
+    });
+    table.appendChild(tbody);
+    tableWrap.appendChild(table);
+  }
+
+  function buildSide(){
+    side.innerHTML = '';
+    const h = document.createElement('h2'); h.textContent = 'Panel Penjadwalan'; h.style.fontSize='19px';
+    side.appendChild(h);
+
+    const tSel = document.createElement('div'); tSel.className='field';
+    tSel.innerHTML = `<label>Guru Aktif</label>
+      <select id="teacherSel">${sortedTeachers().map(t=>`<option value="${t.code}" ${t.code===state.activeTeacherCode?'selected':''}>#${t.code} — ${t.name}</option>`).join('')}</select>`;
+    side.appendChild(tSel);
+    tSel.querySelector('select').onchange = e=>{
+      state.activeTeacherCode = parseInt(e.target.value);
+      state.activeAssignId = null;
+      buildSide();
+      buildSummary();
+    };
+
+    const teacher = state.teachers.find(t=>t.code===state.activeTeacherCode);
+    if(teacher){
+      const totalHours = teacher.subjects.reduce((s,su)=>s+su.hours,0);
+      const totalUsed = teacher.subjects.reduce((s,su)=>s+su.used,0);
+      const meter = document.createElement('div');
+      meter.className='hours-meter';
+      meter.innerHTML = `<div style="display:flex;justify-content:space-between;font-size:12.5px;">
+          <span>Total Jam Tersisa</span><b style="color:var(--gold-soft);">${totalHours-totalUsed} / ${totalHours}</b>
+        </div><div class="bar"><div style="width:${totalHours? (100*(totalHours-totalUsed)/totalHours):0}%;"></div></div>`;
+      side.appendChild(meter);
+
+      const assignList = document.createElement('div');
+      assignList.className = 'assign-list';
+      teacher.subjects.forEach(sub=>{
+        const rem = sub.hours - sub.used;
+        const item = document.createElement('div');
+        item.className = 'assign-item' + (state.activeAssignId===sub.id?' active':'') + (rem<=0?' full':'');
+        item.innerHTML = `<div class="top"><span>${sub.subject}</span><span>${classNameById(sub.classId)}</span></div>
+          <div class="rem">Sisa jam: <b>${rem}</b> / ${sub.hours}</div>`;
+        item.onclick = ()=>{
+          if(rem<=0){ toast('Jam untuk mapel ini sudah penuh.', 'err'); return; }
+          state.activeAssignId = sub.id; buildSide(); buildSummary();
+        };
+        assignList.appendChild(item);
+      });
+      side.appendChild(assignList);
+
+      const activeSub = teacher.subjects.find(s=>s.id===state.activeAssignId);
+      const remActive = activeSub ? activeSub.hours-activeSub.used : 0;
+
+      const blockField = document.createElement('div'); blockField.className='field'; blockField.style.marginTop='16px';
+      blockField.innerHTML = `<label>Jumlah Sesi Sekali Input</label>`;
+      const picker = document.createElement('div'); picker.className='blockpick';
+      [1,2,3].forEach(n=>{
+        const disabled = !activeSub || remActive < 1;
+        const lab = document.createElement('label');
+        lab.className = (state.blockSize===n?'sel':'') + (disabled?' disabled':'');
+        lab.innerHTML = `<input type="radio" name="blk" value="${n}" ${state.blockSize===n?'checked':''}><span>${n} sesi</span>`;
+        if(!disabled){
+          lab.onclick = ()=>{ state.blockSize = n; buildSide(); };
+        }
+        picker.appendChild(lab);
+      });
+      blockField.appendChild(picker);
+      side.appendChild(blockField);
+
+      const hint = document.createElement('p');
+      hint.className = 'sub'; hint.style.marginTop='14px';
+      hint.textContent = activeSub
+        ? `Klik sel kosong pada kolom "${classNameById(activeSub.classId)}" untuk mengisi ${state.blockSize} sesi mapel "${activeSub.subject}".`
+        : 'Pilih salah satu mata pelajaran di atas untuk mulai mengisi jadwal.';
+      side.appendChild(hint);
+    } else {
+      side.innerHTML += `<div class="empty-hint">Belum ada guru.</div>`;
+    }
+
+    // legend
+    const legend = document.createElement('div');
+    legend.className = 'legend';
+    sortedTeachers().forEach(t=>{
+      legend.innerHTML += `<div class="lg"><span class="sw" style="background:${t.color};"></span>#${t.code} ${t.name}</div>`;
+    });
+    side.appendChild(legend);
+
+    // conflicts
+    const conflicts = computeConflicts();
+    const cbox = document.createElement('div');
+    if(conflicts.length){
+      cbox.className = 'conflict-box';
+      const inner = document.createElement('div'); inner.className='inner';
+      inner.innerHTML = `<h3>⚠ ${conflicts.length} Konflik Jadwal Ditemukan</h3>`;
+      conflicts.forEach(c=>{
+        const t = state.teachers.find(tt=>tt.code===c.teacherCode);
+        const item = document.createElement('div');
+        item.className = 'conflict-item';
+        item.innerHTML = `<div class="txt">Guru <b>#${c.teacherCode} ${t?t.name:''}</b> bertugas di lebih dari satu kelas pada <span class="g">${c.dayName}, sesi ${c.sessionNum}</span>: ${c.classIds.map(classNameById).join(' &amp; ')}.</div>
+          <div class="act">
+            <button class="btn sm gold" data-act="join">Gabungkan Kelas (Join)</button>
+            <button class="btn sm danger" data-act="clear">Hapus Salah Satu</button>
+          </div>`;
+        item.querySelector('[data-act=join]').onclick = ()=>{
+          const key = c.dayId+'_'+c.rowIndex;
+          state.joinGroups[key] = state.joinGroups[key] || [];
+          state.joinGroups[key].push(c.classIds.slice());
+          toast('Kelas digabungkan. Konflik ditandai selesai.', 'ok');
+          renderStep4Refresh();
+        };
+        item.querySelector('[data-act=clear]').onclick = ()=>{
+          // remove the placement in the last class of the conflict for this teacher/row
+          const targetClass = c.classIds[c.classIds.length-1];
+          removeCellBatch(c.dayId, c.rowIndex, targetClass);
+          toast('Salah satu penempatan dihapus.', 'ok');
+          renderStep4Refresh();
+        };
+        inner.appendChild(item);
+      });
+      cbox.appendChild(inner);
+    } else {
+      cbox.className = '';
+      cbox.innerHTML = `<div class="no-conflict">✓ Tidak ada konflik jadwal saat ini.</div>`;
+    }
+    side.appendChild(cbox);
+
+    // double-entry: same teacher entering the same class twice (non-contiguous) on the same day
+    const doubles = computeDoubleEntries();
+    const dbox = document.createElement('div');
+    const fmtRun = r => r.startSession===r.endSession ? `sesi ${r.startSession}` : `sesi ${r.startSession}-${r.endSession}`;
+    if(doubles.length){
+      dbox.className = 'conflict-box dup';
+      const inner = document.createElement('div'); inner.className='inner';
+      inner.innerHTML = `<h3>🔁 ${doubles.length} Guru Masuk Ganda di Kelas yang Sama</h3>`;
+      doubles.forEach(d=>{
+        const t = state.teachers.find(tt=>tt.code===d.teacherCode);
+        const item = document.createElement('div');
+        item.className = 'conflict-item';
+        const runsTxt = d.runs.map(fmtRun).join(' &amp; ');
+        item.innerHTML = `<div class="txt">Guru <b>#${d.teacherCode} ${t?t.name:''}</b> masuk ke kelas <span class="g">${classNameById(d.classId)}</span> lebih dari sekali pada hari <span class="g">${d.dayName}</span> (${runsTxt}) — bukan sesi yang bersambung, kemungkinan salah input.</div>
+          <div class="act">${d.runs.slice(1).map((r,idx)=>`<button class="btn sm danger" data-run="${idx+1}">Hapus ${fmtRun(r)}</button>`).join('')}</div>`;
+        item.querySelectorAll('[data-run]').forEach(btn=>{
+          const runIdx = parseInt(btn.dataset.run);
+          btn.onclick = ()=>{
+            removeDoubleEntryRun(d.dayId, d.classId, d.runs[runIdx].rowIndexes);
+            toast('Salah satu kemunculan ganda dihapus.', 'ok');
+            renderStep4Refresh();
+          };
+        });
+        inner.appendChild(item);
+      });
+      dbox.appendChild(inner);
+    } else {
+      dbox.className = '';
+      dbox.innerHTML = `<div class="no-conflict">✓ Tidak ada guru yang masuk ganda di kelas yang sama pada hari yang sama.</div>`;
+    }
+    side.appendChild(dbox);
+  }
+
+  function renderStep4Refresh(){
+    buildTable();
+    buildSide();
+    buildSummary();
+  }
+
+  window.__onCellClick = onCellClick;
+
+  function onCellClick(dayId, rowIndex, classId){
+    const day = state.days.find(d=>d.id===dayId);
+    const row = day.rows[rowIndex];
+    if(row.type !== 'session') return;
+    const cellExisting = state.schedule[dayId][rowIndex][classId];
+
+    if(cellExisting){
+      if(cellExisting.teacherCode === state.activeTeacherCode){
+        if(confirm('Hapus penempatan ini (beserta sesi lanjutannya jika ada)?')){
+          removeCellBatch(dayId, rowIndex, classId);
+          renderStep4Refresh();
+        }
+      } else {
+        toast('Sel ini sudah diisi oleh guru lain. Pilih guru tersebut untuk mengubahnya.', 'err');
+      }
+      return;
+    }
+
+    const teacher = state.teachers.find(t=>t.code===state.activeTeacherCode);
+    if(!teacher){ toast('Pilih guru aktif terlebih dahulu.', 'err'); return; }
+    const sub = teacher.subjects.find(s=>s.id===state.activeAssignId);
+    if(!sub){ toast('Pilih mata pelajaran aktif terlebih dahulu.', 'err'); return; }
+    if(sub.classId !== classId){ toast(`Sel ini bukan kelas "${classNameById(sub.classId)}" untuk mapel aktif.`, 'err'); return; }
+    const remaining = sub.hours - sub.used;
+    if(remaining<=0){ toast('Jam untuk mapel ini sudah penuh.', 'err'); return; }
+
+    const requested = Math.min(state.blockSize, remaining);
+    // find target session rows starting at rowIndex within this day, skipping 'other' rows
+    const targets = [];
+    for(let i=rowIndex; i<day.rows.length && targets.length<requested; i++){
+      if(day.rows[i].type==='session'){
+        const existing = state.schedule[dayId][i][classId];
+        if(existing) break; // stop at first occupied slot
+        targets.push(i);
+      }
+    }
+    if(targets.length===0 || targets[0]!==rowIndex){
+      toast('Sel ini tidak tersedia untuk diisi.', 'err'); return;
+    }
+    const batchId = uid('batch');
+    targets.forEach(i=>{
+      state.schedule[dayId][i][classId] = {teacherCode: teacher.code, subject: sub.subject, assignId: sub.id, batchId};
+    });
+    sub.used += targets.length;
+    if(targets.length < requested){
+      toast(`Hanya ${targets.length} sesi berhasil diisi (sisa jam/sesi terbatas).`, 'ok');
+    } else {
+      toast(`${targets.length} sesi berhasil diisi.`, 'ok');
+    }
+    renderStep4Refresh();
+  }
+
+  function removeCellBatch(dayId, rowIndex, classId){
+    const day = state.days.find(d=>d.id===dayId);
+    const cell = state.schedule[dayId][rowIndex][classId];
+    if(!cell) return;
+    const batchId = cell.batchId;
+    const teacher = state.teachers.find(t=>t.code===cell.teacherCode);
+    const sub = teacher ? teacher.subjects.find(s=>s.id===cell.assignId) : null;
+    let removedCount = 0;
+    day.rows.forEach((r,i)=>{
+      const c = state.schedule[dayId][i][classId];
+      if(c && c.batchId===batchId){ delete state.schedule[dayId][i][classId]; removedCount++; }
+    });
+    if(sub){ sub.used = Math.max(0, sub.used-removedCount); }
+  }
+
+  buildSummary();
+  buildTable();
+  buildSide();
+
+  wrap.querySelector('#back4').addEventListener('click', ()=>{ state.step=3; render(); });
+  wrap.querySelector('#toPreview4').addEventListener('click', ()=>{ state.step=5; render(); });
+
+  return wrap;
+}
+
+/* =========================================================
+   STEP 5 : FULL PREVIEW
+   Lihat ulang seluruh jadwal. Pilih satu kombinasi guru + mapel
+   + kelas lewat tombol di panel samping — sel yang cocok akan
+   menyala terang, sel terisi lainnya jadi semi redup (grayed out).
+========================================================= */
+function renderStep5(){
+  const wrap = document.createElement('div');
+  wrap.className = 'wrap wide';
+
+  const layout = document.createElement('div');
+  layout.className = 'sched-layout';
+  wrap.appendChild(layout);
+
+  const tableWrap = document.createElement('div');
+  tableWrap.className = 'sched-table-wrap';
+  layout.appendChild(tableWrap);
+
+  const side = document.createElement('div');
+  side.className = 'card side-card';
+  layout.appendChild(side);
+
+  const backBtn = document.createElement('div');
+  backBtn.className = 'actions';
+  backBtn.style.margin = '18px 0 0';
+  backBtn.innerHTML = `<div><button class="btn ghost" id="back5">← Kembali ke Susun Jadwal</button></div><div class="right"><button class="btn gold" id="next5">Rekap Guru →</button></div>`;
+  wrap.appendChild(backBtn);
+
+  function currentSelection(){
+    if(!state.previewSelection) return null;
+    for(const t of state.teachers){
+      const sub = t.subjects.find(s=>s.id===state.previewSelection);
+      if(sub) return {teacher:t, sub};
+    }
+    return null;
+  }
+
+  function buildTable(){
+    tableWrap.innerHTML = '';
+    const table = document.createElement('table');
+    table.className = 'sched';
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    headRow.innerHTML = `<th class="corner" style="left:0;position:sticky;">Hari</th><th class="corner" style="left:38px;position:sticky;">Sesi</th><th class="corner" style="left:76px;position:sticky;">Jam</th>`;
+    state.classes.forEach(c=>{ headRow.innerHTML += `<th>${c.name}</th>`; });
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const sel = currentSelection();
+    const tbody = document.createElement('tbody');
+
+    state.days.forEach(day=>{
+      const dayTimes = computeDayTimes(day);
+      day.rows.forEach((row, rowIndex)=>{
+        const tr = document.createElement('tr');
+        if(rowIndex===0){
+          const td = document.createElement('td');
+          td.className='daycell'; td.rowSpan = day.rows.length; td.textContent = day.name;
+          tr.appendChild(td);
+        }
+        let sessionNum = 0;
+        for(let i=0;i<=rowIndex;i++){ if(day.rows[i].type==='session') sessionNum++; }
+
+        const tdSes = document.createElement('td');
+        tdSes.className='sescell';
+        tdSes.textContent = row.type==='session' ? sessionNum : '-';
+        tr.appendChild(tdSes);
+
+        const tdTime = document.createElement('td');
+        tdTime.className='timecell';
+        const t = dayTimes[rowIndex];
+        const timeTxt = t ? `${t.start} - ${t.end}` : '—';
+        tdTime.innerHTML = `${timeTxt}${row.label ? `<span class="lbl">${row.label}</span>` : ''}`;
+        tr.appendChild(tdTime);
+
+        if(row.type==='other'){
+          const td = document.createElement('td');
+          td.className='blockcell'; td.colSpan = state.classes.length;
+          tr.appendChild(td);
+        } else {
+          state.classes.forEach(cls=>{
+            const td = document.createElement('td');
+            const cell = (state.schedule[day.id] && state.schedule[day.id][rowIndex]) ? state.schedule[day.id][rowIndex][cls.id] : null;
+            const isJoined = isCellJoined(day.id, rowIndex, cls.id);
+            let stateClass = '';
+            if(sel && cell){
+              const isHot = cell.assignId === sel.sub.id;
+              stateClass = isHot ? ' pv-hot' : ' pv-dim';
+            }
+            td.className = 'classcell' + (cell?'':' empty') + (isJoined?' joined':'') + stateClass;
+            if(cell){
+              const ct = state.teachers.find(tt=>tt.code===cell.teacherCode);
+              const fill = document.createElement('div');
+              fill.className='fill';
+              fill.style.background = ct ? ct.color : '#555';
+              fill.innerHTML = `${ct?('#'+ct.code):'?'}<small>${cell.subject}</small>`;
+              td.appendChild(fill);
+              td.title = `${ct?ct.name:'?'} — ${cell.subject} (${cls.name})`;
+            }
+            tr.appendChild(td);
+          });
+        }
+        tbody.appendChild(tr);
+      });
+    });
+    table.appendChild(tbody);
+    tableWrap.appendChild(table);
+  }
+
+  function buildSide(){
+    side.innerHTML = '';
+    const h = document.createElement('h2'); h.textContent = 'Preview Lengkap'; h.style.fontSize='19px';
+    side.appendChild(h);
+    const p = document.createElement('p'); p.className='sub';
+    p.textContent = 'Pilih salah satu guru + mata pelajaran + kelas di bawah ini untuk menyorotinya pada tabel jadwal. Penempatan lain akan diredupkan agar mudah ditinjau ulang.';
+    side.appendChild(p);
+
+    const teachers = sortedTeachers();
+    if(teachers.length===0 || teachers.every(t=>t.subjects.length===0)){
+      side.innerHTML += `<div class="preview-empty-note">Belum ada penugasan guru/mapel untuk ditinjau.</div>`;
+      return;
+    }
+
+    const list = document.createElement('div');
+    list.className = 'preview-pick-list';
+    teachers.forEach(t=>{
+      if(t.subjects.length===0) return;
+      const group = document.createElement('div');
+      group.className = 'preview-pick-group';
+      group.innerHTML = `<div class="grp-title"><span class="sw" style="background:${t.color};"></span>#${t.code} ${t.name}</div>`;
+      t.subjects.forEach(sub=>{
+        const btn = document.createElement('div');
+        btn.className = 'preview-pick-btn' + (state.previewSelection===sub.id ? ' sel' : '');
+        btn.innerHTML = `<span class="lbl">${sub.subject}</span><span class="cls">${classNameById(sub.classId)}</span>`;
+        btn.onclick = ()=>{
+          state.previewSelection = (state.previewSelection===sub.id) ? null : sub.id;
+          buildSide();
+          buildTable();
+        };
+        group.appendChild(btn);
+      });
+      list.appendChild(group);
+    });
+    side.appendChild(list);
+
+    const clearRow = document.createElement('div');
+    clearRow.className = 'preview-clear-row';
+    clearRow.innerHTML = `<button class="btn ghost sm" id="pvClear">✕ Tampilkan Semua (Reset)</button>`;
+    side.appendChild(clearRow);
+    clearRow.querySelector('#pvClear').onclick = ()=>{
+      state.previewSelection = null;
+      buildSide();
+      buildTable();
+    };
+
+    // legend, mirrors the scheduler stage so colors stay recognizable
+    const legend = document.createElement('div');
+    legend.className = 'legend';
+    teachers.forEach(t=>{
+      legend.innerHTML += `<div class="lg"><span class="sw" style="background:${t.color};"></span>#${t.code} ${t.name}</div>`;
+    });
+    side.appendChild(legend);
+  }
+
+  buildTable();
+  buildSide();
+
+  wrap.querySelector('#back5').addEventListener('click', ()=>{ state.step=4; render(); });
+  wrap.querySelector('#next5').addEventListener('click', ()=>{ state.step=6; render(); });
+
+  return wrap;
+}
+
+/* =========================================================
+   STEP 6 : REKAP GURU (teacher schedule distribution)
+   Pilih satu guru lewat dropdown — tabel jadwal langsung
+   menyalakan hanya blok jam milik guru tersebut (sel lain
+   tampil kosong, bukan diredupkan/grayed out), lalu di panel
+   samping ditampilkan statistik jam per hari (bar + angka)
+   beserta daftar jam kosong guru tersebut.
+========================================================= */
+function renderStep6(){
+  const wrap = document.createElement('div');
+  wrap.className = 'wrap wide';
+
+  const layout = document.createElement('div');
+  layout.className = 'sched-layout';
+  wrap.appendChild(layout);
+
+  const tableWrap = document.createElement('div');
+  tableWrap.className = 'sched-table-wrap';
+  layout.appendChild(tableWrap);
+
+  const side = document.createElement('div');
+  side.className = 'card side-card';
+  layout.appendChild(side);
+
+  const backBtn = document.createElement('div');
+  backBtn.className = 'actions';
+  backBtn.style.margin = '18px 0 0';
+  backBtn.innerHTML = `<div><button class="btn ghost" id="back6">← Kembali ke Preview Lengkap</button></div><div class="right"></div>`;
+  wrap.appendChild(backBtn);
+
+  if(!state.distribusiTeacherCode && state.teachers.length){
+    state.distribusiTeacherCode = sortedTeachers()[0].code;
+  }
+
+  function computeDistribution(teacherCode){
+    const perDay = [];
+    let totalAssigned = 0, totalSlots = 0;
+    state.days.forEach(day=>{
+      const sessionRows = [];
+      let sNum = 0;
+      day.rows.forEach((row, idx)=>{ if(row.type==='session'){ sNum++; sessionRows.push({rowIndex: idx, sessionNum: sNum}); } });
+      const assignedList = [];
+      const freeSessions = [];
+      sessionRows.forEach(sr=>{
+        let hit = null;
+        for(const cls of state.classes){
+          const cell = state.schedule[day.id] && state.schedule[day.id][sr.rowIndex] ? state.schedule[day.id][sr.rowIndex][cls.id] : null;
+          if(cell && cell.teacherCode===teacherCode){ hit = {sessionNum: sr.sessionNum, className: cls.name, subject: cell.subject}; break; }
+        }
+        if(hit) assignedList.push(hit); else freeSessions.push(sr.sessionNum);
+      });
+      perDay.push({dayId: day.id, dayName: day.name, totalSessions: sessionRows.length, assignedCount: assignedList.length, assignedList, freeSessions});
+      totalAssigned += assignedList.length;
+      totalSlots += sessionRows.length;
+    });
+    return {perDay, totalAssigned, totalSlots};
+  }
+
+  function buildTable(){
+    tableWrap.innerHTML = '';
+    const table = document.createElement('table');
+    table.className = 'sched';
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    headRow.innerHTML = `<th class="corner" style="left:0;position:sticky;">Hari</th><th class="corner" style="left:38px;position:sticky;">Sesi</th><th class="corner" style="left:76px;position:sticky;">Jam</th>`;
+    state.classes.forEach(c=>{ headRow.innerHTML += `<th>${c.name}</th>`; });
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    const selCode = state.distribusiTeacherCode;
+
+    state.days.forEach(day=>{
+      const dayTimes = computeDayTimes(day);
+      day.rows.forEach((row, rowIndex)=>{
+        const tr = document.createElement('tr');
+        if(rowIndex===0){
+          const td = document.createElement('td');
+          td.className='daycell'; td.rowSpan = day.rows.length; td.textContent = day.name;
+          tr.appendChild(td);
+        }
+        let sessionNum = 0;
+        for(let i=0;i<=rowIndex;i++){ if(day.rows[i].type==='session') sessionNum++; }
+
+        const tdSes = document.createElement('td');
+        tdSes.className='sescell';
+        tdSes.textContent = row.type==='session' ? sessionNum : '-';
+        tr.appendChild(tdSes);
+
+        const tdTime = document.createElement('td');
+        tdTime.className='timecell';
+        const t = dayTimes[rowIndex];
+        const timeTxt = t ? `${t.start} - ${t.end}` : '—';
+        tdTime.innerHTML = `${timeTxt}${row.label ? `<span class="lbl">${row.label}</span>` : ''}`;
+        tr.appendChild(tdTime);
+
+        if(row.type==='other'){
+          const td = document.createElement('td');
+          td.className='blockcell'; td.colSpan = state.classes.length;
+          tr.appendChild(td);
+        } else {
+          state.classes.forEach(cls=>{
+            const td = document.createElement('td');
+            const cell = (state.schedule[day.id] && state.schedule[day.id][rowIndex]) ? state.schedule[day.id][rowIndex][cls.id] : null;
+            const isMine = !!(cell && cell.teacherCode === selCode);
+            // Only the selected teacher's own blocks light up; every other
+            // slot (empty OR taken by another teacher) reads as a plain
+            // empty cell, not dimmed/grayed.
+            td.className = 'classcell' + (isMine ? ' dist-mine' : ' empty');
+            if(isMine){
+              const ct = state.teachers.find(tt=>tt.code===cell.teacherCode);
+              const fill = document.createElement('div');
+              fill.className='fill';
+              fill.style.background = ct ? ct.color : '#555';
+              fill.innerHTML = `${ct?('#'+ct.code):'?'}<small>${cell.subject}</small>`;
+              td.appendChild(fill);
+              td.title = `${ct?ct.name:'?'} — ${cell.subject} (${cls.name})`;
+            }
+            tr.appendChild(td);
+          });
+        }
+        tbody.appendChild(tr);
+      });
+    });
+    table.appendChild(tbody);
+    tableWrap.appendChild(table);
+  }
+
+  function buildSide(){
+    side.innerHTML = '';
+    const h = document.createElement('h2'); h.textContent = 'Rekap Guru'; h.style.fontSize='19px';
+    side.appendChild(h);
+    const p = document.createElement('p'); p.className='sub';
+    p.textContent = 'Pilih guru untuk melihat persebaran jam mengajarnya sepanjang minggu. Blok milik guru terpilih akan menyala; slot lain tampil kosong.';
+    side.appendChild(p);
+
+    if(state.teachers.length===0){
+      side.innerHTML += `<div class="preview-empty-note">Belum ada data guru.</div>`;
+      return;
+    }
+
+    const tSel = document.createElement('div'); tSel.className='field';
+    tSel.innerHTML = `<label>Pilih Guru</label>
+      <select id="distTeacherSel">${sortedTeachers().map(t=>`<option value="${t.code}" ${t.code===state.distribusiTeacherCode?'selected':''}>#${t.code} — ${t.name}</option>`).join('')}</select>`;
+    side.appendChild(tSel);
+    tSel.querySelector('select').onchange = e=>{
+      state.distribusiTeacherCode = parseInt(e.target.value);
+      buildSide();
+      buildTable();
+    };
+
+    const teacher = state.teachers.find(t=>t.code===state.distribusiTeacherCode);
+    if(!teacher) return;
+
+    const dist = computeDistribution(teacher.code);
+
+    const meter = document.createElement('div');
+    meter.className = 'hours-meter';
+    meter.innerHTML = `<div style="display:flex;justify-content:space-between;font-size:12.5px;">
+        <span>Total Jam Mengajar Terjadwal</span><b style="color:var(--gold-soft);">${dist.totalAssigned} / ${dist.totalSlots} sesi</b>
+      </div><div class="bar"><div style="width:${dist.totalSlots ? (100*dist.totalAssigned/dist.totalSlots) : 0}%;background:${teacher.color};"></div></div>`;
+    side.appendChild(meter);
+
+    const barList = document.createElement('div');
+    barList.className = 'distrib-daybar-list';
+    dist.perDay.forEach(d=>{
+      const pct = d.totalSessions ? Math.round(100*d.assignedCount/d.totalSessions) : 0;
+      const item = document.createElement('div');
+      item.className = 'distrib-daybar-item';
+      item.innerHTML = `<div class="lbl"><span>${d.dayName}</span><b>${d.assignedCount} / ${d.totalSessions} jam</b></div>
+        <div class="bar"><div style="width:${pct}%;background:${teacher.color};"></div></div>`;
+      barList.appendChild(item);
+    });
+    side.appendChild(barList);
+
+    const emptyWrap = document.createElement('div');
+    emptyWrap.className = 'distrib-empty-list';
+    const emptyTitle = document.createElement('div');
+    emptyTitle.className = 'sec-title';
+    emptyTitle.textContent = 'Jam Kosong per Hari';
+    emptyWrap.appendChild(emptyTitle);
+    dist.perDay.forEach(d=>{
+      const row = document.createElement('div');
+      row.className = 'distrib-empty-day';
+      if(d.totalSessions===0){
+        row.innerHTML = `<b>${d.dayName}</b> — <span style="color:var(--muted-2);">tidak ada baris sesi.</span>`;
+      } else if(d.freeSessions.length===0){
+        row.innerHTML = `<b>${d.dayName}</b> — <span style="color:var(--good);">penuh, tidak ada jam kosong.</span>`;
+      } else if(d.assignedCount===0){
+        row.innerHTML = `<b>${d.dayName}</b> — <span style="color:var(--muted-2);">tidak mengajar sama sekali (semua ${d.totalSessions} sesi kosong).</span>`;
+      } else {
+        row.innerHTML = `<b>${d.dayName}</b> — sesi kosong:<div class="distrib-empty-tags">${d.freeSessions.map(n=>`<span class="distrib-empty-tag">Sesi ${n}</span>`).join('')}</div>`;
+      }
+      emptyWrap.appendChild(row);
+    });
+    side.appendChild(emptyWrap);
+
+    const legend = document.createElement('div');
+    legend.className = 'legend';
+    legend.style.marginTop = '18px';
+    legend.innerHTML = `<div class="lg"><span class="sw" style="background:${teacher.color};"></span>#${teacher.code} ${teacher.name}</div>`;
+    side.appendChild(legend);
+  }
+
+  buildTable();
+  buildSide();
+
+  wrap.querySelector('#back6').addEventListener('click', ()=>{ state.step=5; render(); });
+
+  return wrap;
+}
+
+function isCellJoined(dayId, rowIndex, classId){
+  const key = dayId+'_'+rowIndex;
+  const groups = state.joinGroups[key];
+  if(!groups) return false;
+  return groups.some(g=>g.includes(classId));
+}
+
+function computeConflicts(){
+  const conflicts = [];
+  state.days.forEach(day=>{
+    day.rows.forEach((row, rowIndex)=>{
+      if(row.type!=='session') return;
+      const teacherMap = {};
+      state.classes.forEach(cls=>{
+        const cell = state.schedule[day.id] && state.schedule[day.id][rowIndex] ? state.schedule[day.id][rowIndex][cls.id] : null;
+        if(cell){
+          teacherMap[cell.teacherCode] = teacherMap[cell.teacherCode] || [];
+          teacherMap[cell.teacherCode].push(cls.id);
+        }
+      });
+      let sessionNum = 0;
+      for(let i=0;i<=rowIndex;i++){ if(day.rows[i].type==='session') sessionNum++; }
+
+      Object.keys(teacherMap).forEach(code=>{
+        const classIds = teacherMap[code];
+        if(classIds.length<2) return;
+        const key = day.id+'_'+rowIndex;
+        const groups = state.joinGroups[key] || [];
+        const covered = groups.some(g=> classIds.every(cid=>g.includes(cid)) );
+        if(!covered){
+          conflicts.push({dayId: day.id, dayName: day.name, rowIndex, sessionNum, teacherCode: parseInt(code), classIds});
+        }
+      });
+    });
+  });
+  return conflicts;
+}
+
+/* Detects a teacher entering the SAME class more than once on the SAME day
+   in non-contiguous session blocks — e.g. teacher #1 at sessions 3-4 (fine,
+   one continuous block) AND again separately at sessions 7-8 (a second,
+   disconnected entry into the same class on the same day). */
+function computeDoubleEntries(){
+  const results = [];
+  state.days.forEach(day=>{
+    const sessionRows = [];
+    let sNum = 0;
+    day.rows.forEach((row, idx)=>{
+      if(row.type==='session'){ sNum++; sessionRows.push({rowIndex: idx, sessionNum: sNum}); }
+    });
+    state.classes.forEach(cls=>{
+      const seq = sessionRows.map(sr=>{
+        const cell = (state.schedule[day.id] && state.schedule[day.id][sr.rowIndex]) ? state.schedule[day.id][sr.rowIndex][cls.id] : null;
+        return {rowIndex: sr.rowIndex, sessionNum: sr.sessionNum, teacherCode: cell ? cell.teacherCode : null};
+      });
+      const runsByTeacher = {};
+      let i = 0;
+      while(i < seq.length){
+        const tc = seq[i].teacherCode;
+        if(tc===null || tc===undefined){ i++; continue; }
+        let j = i;
+        const rowIndexes = [];
+        while(j < seq.length && seq[j].teacherCode === tc){ rowIndexes.push(seq[j].rowIndex); j++; }
+        const run = {startSession: seq[i].sessionNum, endSession: seq[j-1].sessionNum, rowIndexes};
+        (runsByTeacher[tc] = runsByTeacher[tc] || []).push(run);
+        i = j;
+      }
+      Object.keys(runsByTeacher).forEach(tcStr=>{
+        const runs = runsByTeacher[tcStr];
+        if(runs.length > 1){
+          results.push({dayId: day.id, dayName: day.name, classId: cls.id, teacherCode: parseInt(tcStr), runs});
+        }
+      });
+    });
+  });
+  return results;
+}
+
+function removeDoubleEntryRun(dayId, classId, rowIndexes){
+  rowIndexes.forEach(ri=>{
+    const cell = state.schedule[dayId][ri][classId];
+    if(!cell) return;
+    const teacher = state.teachers.find(t=>t.code===cell.teacherCode);
+    const sub = teacher ? teacher.subjects.find(s=>s.id===cell.assignId) : null;
+    delete state.schedule[dayId][ri][classId];
+    if(sub) sub.used = Math.max(0, sub.used - 1);
+  });
+}
+
+/* =========================================================
+   INIT
+========================================================= */
+document.getElementById('btnSave').addEventListener('click', doSaveQuick);
+document.getElementById('btnSaveAs').addEventListener('click', doSaveAs);
+document.getElementById('btnLoad').addEventListener('click', doLoad);
+document.getElementById('loadFileInput').addEventListener('change', handleFallbackFileInput);
+document.getElementById('btnGasConfig').addEventListener('click', openGasConfigModal);
+document.getElementById('btnSaveOnline').addEventListener('click', doSaveOnline);
+document.getElementById('btnLoadOnline').addEventListener('click', doLoadOnlinePrompt);
+updateSaveStatus();
+
+render();
+</script>
+</body>
+</html>
