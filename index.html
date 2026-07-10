@@ -428,10 +428,13 @@ footer.copyright .heart{color:var(--rose-light);}
     <button class="btn ghost sm" id="btnSaveOnline">☁️⬆ Simpan Online</button>
     <button class="btn ghost sm" id="btnLoad">📂 Muat Progress</button>
     <button class="btn ghost sm" id="btnSaveAs">🗂 Simpan Sebagai…</button>
+    <button class="btn ghost sm" id="btnExportExcel">📊 Export Excel</button>
     <button class="btn gold sm" id="btnSave">💾 Simpan</button>
   </div>
 </div>
 <input type="file" id="loadFileInput" accept="application/json,.json" style="display:none;">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <div id="root"></div>
 
@@ -2326,10 +2329,198 @@ function removeDoubleEntryRun(dayId, classId, rowIndexes){
 }
 
 /* =========================================================
+   EXPORT KE EXCEL (.xlsx)
+   Menghasilkan file Excel dari jadwal yang sudah disusun.
+   Dua tata letak dapat dipilih pengguna:
+   - Vertikal: hari ke bawah, kelas ke kanan (seperti tampilan
+     aplikasi). Legenda kode guru diletakkan di sisi KANAN tabel.
+   - Horizontal: hari ke kanan, kelas ke bawah (transpose).
+     Legenda kode guru diletakkan di BAWAH tabel.
+   Setiap sel diisi kode guru (mis. "#3"); mata pelajaran PJBL
+   ditandai tambahan "*". Judul "JADWAL GURU SMA SANTA MARIA
+   2026" ditulis pada baris-baris pertama, merged penuh lebar.
+========================================================= */
+function isSubjectPJBL(subject){
+  return /pjbl/i.test(subject || '');
+}
+
+function getSessionDayStructure(){
+  return state.days.map(day=>{
+    let sNum = 0;
+    const sessionRows = [];
+    day.rows.forEach((row, idx)=>{
+      if(row.type==='session'){ sNum++; sessionRows.push({rowIndex: idx, sessionNum: sNum}); }
+    });
+    return {day, sessionRows};
+  }).filter(d=>d.sessionRows.length>0);
+}
+
+function teacherCellText(cell){
+  if(!cell) return '';
+  return '#' + cell.teacherCode + (isSubjectPJBL(cell.subject) ? '*' : '');
+}
+
+function buildTeacherLegendRows(){
+  const rows = [['Legenda Kode Guru'], ['Kode','Nama Guru']];
+  sortedTeachers().forEach(t=>{ rows.push(['#'+t.code, t.name]); });
+  rows.push(['']);
+  rows.push(['* = Mata Pelajaran PJBL']);
+  return rows;
+}
+
+const EXPORT_TITLE = 'JADWAL GURU SMA SANTA MARIA 2026';
+
+/* ---- Vertikal: hari ke bawah, kelas ke kanan, legenda di kanan ---- */
+function buildVerticalSheet(){
+  const dayStruct = getSessionDayStructure();
+  const totalCols = 2 + state.classes.length; // Hari, Sesi, + kolom kelas
+
+  const rows = [];
+  rows.push([EXPORT_TITLE]); // baris 1: judul (merge vertikal ke baris 2)
+  rows.push([]);             // baris 2: bagian dari merge judul
+  rows.push([]);             // baris 3: spasi
+
+  const headerRowIndex = rows.length; // baris ke-4 (index 3)
+  rows.push(['Hari','Sesi', ...state.classes.map(c=>c.name)]);
+
+  const merges = [ {s:{r:0,c:0}, e:{r:1,c:Math.max(totalCols-1,0)}} ];
+
+  dayStruct.forEach(({day, sessionRows})=>{
+    const dayStartRow = rows.length;
+    sessionRows.forEach(sr=>{
+      const rowArr = [day.name, sr.sessionNum];
+      state.classes.forEach(cls=>{
+        const cell = state.schedule[day.id] && state.schedule[day.id][sr.rowIndex] ? state.schedule[day.id][sr.rowIndex][cls.id] : null;
+        rowArr.push(teacherCellText(cell));
+      });
+      rows.push(rowArr);
+    });
+    if(sessionRows.length>1){
+      merges.push({s:{r:dayStartRow,c:0}, e:{r:dayStartRow+sessionRows.length-1,c:0}});
+    }
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!merges'] = merges;
+  ws['!cols'] = [{wch:12},{wch:7}, ...state.classes.map(()=>({wch:10}))];
+
+  // Legenda ditempel di sisi KANAN, mulai sejajar dengan baris header tabel
+  const legendRows = buildTeacherLegendRows();
+  XLSX.utils.sheet_add_aoa(ws, legendRows, {origin: {r: headerRowIndex, c: totalCols+1}});
+
+  return ws;
+}
+
+/* ---- Horizontal: hari ke kanan, kelas ke bawah, legenda di bawah ---- */
+function buildHorizontalSheet(){
+  const dayStruct = getSessionDayStructure();
+  const totalSessionCols = dayStruct.reduce((s,d)=>s+d.sessionRows.length,0);
+  const totalCols = 1 + totalSessionCols; // Kelas + kolom sesi-sesi
+
+  const rows = [];
+  rows.push([EXPORT_TITLE]); // baris 1: judul (merge vertikal ke baris 2)
+  rows.push([]);             // baris 2: bagian dari merge judul
+  rows.push([]);             // baris 3: spasi
+
+  const dayHeaderRow = rows.length; // baris nama hari
+  const dayRow = ['Kelas'];
+  const sesRow = [''];
+  dayStruct.forEach(({day, sessionRows})=>{
+    sessionRows.forEach((sr, i)=>{
+      dayRow.push(i===0 ? day.name : '');
+      sesRow.push(sr.sessionNum);
+    });
+  });
+  rows.push(dayRow); // baris nama hari
+  rows.push(sesRow); // baris nomor sesi
+
+  const merges = [
+    {s:{r:0,c:0}, e:{r:1,c:Math.max(totalCols-1,0)}},
+    {s:{r:dayHeaderRow,c:0}, e:{r:dayHeaderRow+1,c:0}}
+  ];
+  let colCursor = 1;
+  dayStruct.forEach(({sessionRows})=>{
+    if(sessionRows.length>1){
+      merges.push({s:{r:dayHeaderRow,c:colCursor}, e:{r:dayHeaderRow,c:colCursor+sessionRows.length-1}});
+    }
+    colCursor += sessionRows.length;
+  });
+
+  state.classes.forEach(cls=>{
+    const rowArr = [cls.name];
+    dayStruct.forEach(({day, sessionRows})=>{
+      sessionRows.forEach(sr=>{
+        const cell = state.schedule[day.id] && state.schedule[day.id][sr.rowIndex] ? state.schedule[day.id][sr.rowIndex][cls.id] : null;
+        rowArr.push(teacherCellText(cell));
+      });
+    });
+    rows.push(rowArr);
+  });
+
+  // Legenda ditempel di BAWAH tabel
+  rows.push([]);
+  buildTeacherLegendRows().forEach(r=>rows.push(r));
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!merges'] = merges;
+  ws['!cols'] = [{wch:12}, ...new Array(totalSessionCols).fill({wch:7})];
+
+  return ws;
+}
+
+function generateExcelWorkbookAndDownload(orientation){
+  if(typeof XLSX === 'undefined'){
+    toast('Gagal memuat pustaka Excel. Periksa koneksi internet Anda dan coba lagi.', 'err');
+    return;
+  }
+  if(state.classes.length===0 || state.days.length===0){
+    toast('Lengkapi data kelas dan hari terlebih dahulu.', 'err');
+    return;
+  }
+  const ws = orientation==='horizontal' ? buildHorizontalSheet() : buildVerticalSheet();
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, orientation==='horizontal' ? 'Jadwal Horizontal' : 'Jadwal Vertikal');
+  const fname = `jadwal-guru-sma-santa-maria-${orientation}.xlsx`;
+  XLSX.writeFile(wb, fname);
+  toast(`File Excel "${fname}" berhasil diunduh.`, 'ok');
+}
+
+function openExportExcelModal(){
+  if(state.classes.length===0 || state.days.length===0){
+    toast('Lengkapi data kelas dan hari terlebih dahulu sebelum mengekspor.', 'err');
+    return;
+  }
+  const body = document.createElement('div');
+  body.innerHTML = `
+    <p class="sub">Pilih tata letak tabel pada file Excel yang akan diunduh.</p>
+    <div class="field">
+      <label style="display:flex;align-items:flex-start;gap:8px;font-size:14px;text-transform:none;letter-spacing:0;color:var(--text);margin-bottom:12px;cursor:pointer;">
+        <input type="radio" name="xlsOrient" value="vertical" checked style="width:auto;margin-top:3px;">
+        <span><b>Vertikal</b> — hari ke bawah, kelas ke kanan (seperti tampilan aplikasi). Legenda kode guru di sisi <b>kanan</b> tabel.</span>
+      </label>
+      <label style="display:flex;align-items:flex-start;gap:8px;font-size:14px;text-transform:none;letter-spacing:0;color:var(--text);cursor:pointer;">
+        <input type="radio" name="xlsOrient" value="horizontal" style="width:auto;margin-top:3px;">
+        <span><b>Horizontal</b> — hari ke kanan, kelas ke bawah. Legenda kode guru di bagian <b>bawah</b> tabel.</span>
+      </label>
+    </div>
+    <p class="sub" style="margin-top:14px;">Setiap sel diisi kode guru (contoh: <span class="mono">#3</span>). Tanda <b>*</b> menandai mata pelajaran PJBL.</p>
+  `;
+  showModal('📊 Export Jadwal ke Excel', body, {
+    okLabel: 'Unduh Excel',
+    onOk: ()=>{
+      const val = body.querySelector('input[name=xlsOrient]:checked').value;
+      generateExcelWorkbookAndDownload(val);
+      return true;
+    }
+  });
+}
+
+/* =========================================================
    INIT
 ========================================================= */
 document.getElementById('btnSave').addEventListener('click', doSaveQuick);
 document.getElementById('btnSaveAs').addEventListener('click', doSaveAs);
+document.getElementById('btnExportExcel').addEventListener('click', openExportExcelModal);
 document.getElementById('btnLoad').addEventListener('click', doLoad);
 document.getElementById('loadFileInput').addEventListener('change', handleFallbackFileInput);
 document.getElementById('btnGasConfig').addEventListener('click', openGasConfigModal);
