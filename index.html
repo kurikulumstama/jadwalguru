@@ -362,6 +362,36 @@ td.classcell.pv-hot .fill{box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);}
 .distrib-empty-tag{background:var(--bg-2);border:1px solid var(--border);border-radius:7px;padding:3px 9px;font-size:11.5px;color:var(--muted-2);font-family:'JetBrains Mono',monospace;}
 td.classcell.dist-mine .fill{box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);}
 
+/* ---------- Jadwal Piket Stage ---------- */
+.piket-daybar-list{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
+.piket-row{
+  border:1px solid var(--border-soft);border-radius:11px;padding:11px 14px;background:var(--bg-2);
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+}
+.piket-row.on{border-color:var(--gold);background:rgba(203,161,90,.1);}
+.piket-row .who{display:flex;align-items:center;gap:12px;}
+.piket-row .rank{
+  width:24px;height:24px;border-radius:50%;background:var(--panel-3);color:var(--muted-2);
+  display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;flex-shrink:0;
+}
+.piket-row.on .rank{background:var(--gold);color:#2a1608;}
+.piket-row .nm{font-weight:600;font-size:13.5px;}
+.piket-row .code{
+  font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--panel-3);color:var(--gold-soft);
+  padding:2px 8px;border-radius:7px;margin-left:8px;
+}
+.piket-row .hrs{font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;flex-shrink:0;}
+.piket-row.on .hrs{color:var(--gold-soft);}
+.piket-badge{
+  background:var(--gold);color:#2a1608;font-size:10.5px;font-weight:700;border-radius:999px;padding:3px 10px;
+  text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;
+}
+.piket-count-field{max-width:220px;}
+.piket-summary-card{padding:20px 24px;}
+.piket-list-panel{display:flex;flex-direction:column;gap:8px;margin-top:14px;max-height:56vh;overflow:auto;padding-right:2px;}
+
+td.classcell.piket-dim{opacity:.28;filter:grayscale(.6);}
+
 .toast-wrap{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:10px;z-index:200;}
 .toast{
   background:var(--panel-3);border:1px solid var(--border);color:var(--text);padding:12px 18px;border-radius:10px;
@@ -454,14 +484,17 @@ const state = {
   classes: [],            // {id, name}
   days: [],               // {id, name, rows:[{id,type:'session'|'other',label,start,end}]}
   teachers: [],           // {code, name, color, subjects:[{id, subject, classId, hours, used}]}
-  schedule: {},           // schedule[dayId][rowIndex][classId] = {teacherCode, subject, assignId, batchId}
-  joinGroups: {},         // joinGroups["dayId_rowIndex"] = [ [classId,classId,...], ... ]
+  schedule: {},            // schedule[dayId][rowIndex][classId] = {teacherCode, subject, assignId, batchId}
+  joinGroups: {},          // joinGroups["dayId_rowIndex"] = [ [classId,classId,...], ... ]
   activeTeacherCode: null,
   activeAssignId: null,
   blockSize: 1,
   activeDayTab: null,
   previewSelection: null,  // assignId of the guru+mapel+kelas currently spotlighted on the full preview stage
   distribusiTeacherCode: null, // teacher code currently selected on the "Rekap Guru" distribution stage
+  piketDayTab: null,       // day currently selected on the "Jadwal Piket" stage
+  piketCount: 6,           // target jumlah guru piket per hari (untuk info & isi-otomatis)
+  piketSelections: {},     // piketSelections[dayId] = [teacherCode, ...] — dipilih manual oleh pengguna
 };
 
 let uidCounter = 1;
@@ -518,6 +551,9 @@ function serializeState(){
       activeDayTab: state.activeDayTab,
       previewSelection: state.previewSelection,
       distribusiTeacherCode: state.distribusiTeacherCode,
+      piketDayTab: state.piketDayTab,
+      piketCount: state.piketCount,
+      piketSelections: state.piketSelections,
       _activeDayNames: state._activeDayNames
     }
   }, null, 2);
@@ -533,6 +569,8 @@ function applyLoadedData(obj){
   Object.keys(state).forEach(k=>{ if(!(k in obj.state)) delete state[k]; });
   Object.assign(state, obj.state);
   if(obj.uidCounter) uidCounter = Math.max(uidCounter, obj.uidCounter);
+  if(!state.piketCount) state.piketCount = 6;
+  if(!state.piketSelections || typeof state.piketSelections!=='object') state.piketSelections = {};
   state.days.forEach(d=>{
     if(!state.schedule[d.id]) state.schedule[d.id] = d.rows.map(()=>({}));
     while(state.schedule[d.id].length < d.rows.length) state.schedule[d.id].push({});
@@ -835,7 +873,7 @@ async function loadOnlineByName(name){
 /* =========================================================
    STEP NAV
 ========================================================= */
-const STEP_LABELS = ["Kelas","Hari & Sesi","Guru","Susun Jadwal","Preview Lengkap","Rekap Guru"];
+const STEP_LABELS = ["Kelas","Hari & Sesi","Guru","Susun Jadwal","Preview Lengkap","Rekap Guru","Jadwal Piket"];
 function renderStepsNav(){
   const nav = document.getElementById('stepsNav');
   nav.innerHTML = '';
@@ -870,6 +908,7 @@ function render(){
   else if(state.step===4) root.appendChild(renderStep4());
   else if(state.step===5) root.appendChild(renderStep5());
   else if(state.step===6) root.appendChild(renderStep6());
+  else if(state.step===7) root.appendChild(renderStep7());
 }
 
 /* =========================================================
@@ -2054,7 +2093,7 @@ function renderStep6(){
   const backBtn = document.createElement('div');
   backBtn.className = 'actions';
   backBtn.style.margin = '18px 0 0';
-  backBtn.innerHTML = `<div><button class="btn ghost" id="back6">← Kembali ke Preview Lengkap</button></div><div class="right"></div>`;
+  backBtn.innerHTML = `<div><button class="btn ghost" id="back6">← Kembali ke Preview Lengkap</button></div><div class="right"><button class="btn gold" id="next6">Jadwal Piket →</button></div>`;
   wrap.appendChild(backBtn);
 
   if(!state.distribusiTeacherCode && state.teachers.length){
@@ -2235,8 +2274,315 @@ function renderStep6(){
   buildSide();
 
   wrap.querySelector('#back6').addEventListener('click', ()=>{ state.step=5; render(); });
+  wrap.querySelector('#next6').addEventListener('click', ()=>{ state.step=7; render(); });
 
   return wrap;
+}
+
+/* =========================================================
+   STEP 7 : JADWAL PIKET
+   Untuk setiap hari, ditampilkan urutan guru dari jam mengajar
+   PALING SEDIKIT pada hari itu (dihitung otomatis dari jadwal
+   yang sudah disusun) sebagai bahan pertimbangan. Pengguna lalu
+   memilih SENDIRI guru mana saja yang bertugas piket hari itu
+   (klik untuk centang/lepas — tidak harus mengikuti urutan).
+   Setelah pilihan lengkap, hasilnya bisa diekspor ke Excel.
+========================================================= */
+function computeTeacherDayHours(day){
+  const hoursMap = {}; // teacherCode -> Set of rowIndex taught that day
+  day.rows.forEach((row, rowIndex)=>{
+    if(row.type!=='session') return;
+    state.classes.forEach(cls=>{
+      const cell = state.schedule[day.id] && state.schedule[day.id][rowIndex] ? state.schedule[day.id][rowIndex][cls.id] : null;
+      if(cell){
+        if(!hoursMap[cell.teacherCode]) hoursMap[cell.teacherCode] = new Set();
+        hoursMap[cell.teacherCode].add(rowIndex);
+      }
+    });
+  });
+  return sortedTeachers().map(t=>({
+    teacher: t,
+    hours: hoursMap[t.code] ? hoursMap[t.code].size : 0
+  })).sort((a,b)=> a.hours - b.hours || a.teacher.code - b.teacher.code);
+}
+
+function getPiketSelection(dayId){
+  if(!state.piketSelections[dayId]) state.piketSelections[dayId] = [];
+  // drop codes of teachers that no longer exist
+  const validCodes = new Set(state.teachers.map(t=>t.code));
+  state.piketSelections[dayId] = state.piketSelections[dayId].filter(c=>validCodes.has(c));
+  return state.piketSelections[dayId];
+}
+
+function togglePiketTeacher(dayId, teacherCode){
+  const sel = getPiketSelection(dayId);
+  const idx = sel.indexOf(teacherCode);
+  if(idx>=0) sel.splice(idx,1); else sel.push(teacherCode);
+}
+
+function autoFillPiketDay(dayId){
+  const day = state.days.find(d=>d.id===dayId);
+  if(!day) return;
+  const ranked = computeTeacherDayHours(day);
+  const n = Math.max(1, state.piketCount||6);
+  state.piketSelections[dayId] = ranked.slice(0, n).map(r=>r.teacher.code);
+}
+
+function clearPiketDay(dayId){
+  state.piketSelections[dayId] = [];
+}
+
+function renderStep7(){
+  const wrap = document.createElement('div');
+  wrap.className = 'wrap wide';
+
+  const infoCard = document.createElement('div');
+  infoCard.className = 'card piket-summary-card';
+  infoCard.innerHTML = `
+    <h2 style="font-size:19px;margin:0;">🧹 Jadwal Piket</h2>
+    <p class="sub" style="margin:6px 0 0;">Setiap guru ditampilkan lengkap dengan jam mengajarnya pada hari itu (dihitung otomatis dari jadwal yang sudah disusun) sebagai bahan pertimbangan. Klik seorang guru untuk menjadikannya (atau melepaskannya sebagai) petugas piket hari itu — pilihan sepenuhnya di tangan Anda. Setelah selesai, jadwal piket dapat diekspor ke Excel.</p>
+  `;
+  const controlsRow = document.createElement('div');
+  controlsRow.style.cssText = 'display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-top:16px;';
+  const countField = document.createElement('div');
+  countField.className = 'field piket-count-field';
+  countField.style.margin = '0';
+  countField.innerHTML = `<label>Target Jumlah Guru Piket per Hari</label><input type="number" id="piketCountInput" min="1" max="${Math.max(1,state.teachers.length)}" value="${state.piketCount||6}">`;
+  controlsRow.appendChild(countField);
+  const exportBtnWrap = document.createElement('div');
+  exportBtnWrap.innerHTML = `<button class="btn gold sm" id="btnExportPiket">📊 Export Jadwal Piket ke Excel</button>`;
+  controlsRow.appendChild(exportBtnWrap);
+  infoCard.appendChild(controlsRow);
+  wrap.appendChild(infoCard);
+
+  const layout = document.createElement('div');
+  layout.className = 'sched-layout';
+  wrap.appendChild(layout);
+
+  const tableWrap = document.createElement('div');
+  tableWrap.className = 'sched-table-wrap';
+  layout.appendChild(tableWrap);
+
+  const side = document.createElement('div');
+  side.className = 'card side-card';
+  layout.appendChild(side);
+
+  const backBtn = document.createElement('div');
+  backBtn.className = 'actions';
+  backBtn.style.margin = '18px 0 0';
+  backBtn.innerHTML = `<div><button class="btn ghost" id="back7">← Kembali ke Rekap Guru</button></div><div class="right"></div>`;
+  wrap.appendChild(backBtn);
+
+  exportBtnWrap.querySelector('#btnExportPiket').addEventListener('click', doExportPiketExcel);
+  wrap.querySelector('#back7').addEventListener('click', ()=>{ state.step=6; render(); });
+
+  if(!state.days.length || !state.teachers.length){
+    const empty = document.createElement('div');
+    empty.className = 'card';
+    empty.innerHTML = `<div class="empty-hint">Lengkapi data hari &amp; guru terlebih dahulu untuk mengatur jadwal piket.</div>`;
+    layout.replaceWith(empty);
+    return wrap;
+  }
+
+  if(!state.piketDayTab || !state.days.find(d=>d.id===state.piketDayTab)){
+    state.piketDayTab = state.days[0].id;
+  }
+
+  function buildTable(){
+    tableWrap.innerHTML = '';
+    const day = state.days.find(d=>d.id===state.piketDayTab);
+    const piketCodes = new Set(day ? getPiketSelection(day.id) : []);
+
+    const table = document.createElement('table');
+    table.className = 'sched';
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    headRow.innerHTML = `<th class="corner" style="left:0;position:sticky;">Hari</th><th class="corner" style="left:38px;position:sticky;">Sesi</th><th class="corner" style="left:76px;position:sticky;">Jam</th>`;
+    state.classes.forEach(c=>{ headRow.innerHTML += `<th>${c.name}</th>`; });
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    if(day){
+      const dayTimes = computeDayTimes(day);
+      day.rows.forEach((row, rowIndex)=>{
+        const tr = document.createElement('tr');
+        const tdDay = document.createElement('td');
+        tdDay.className='daycell'; tdDay.textContent = day.name;
+        tr.appendChild(tdDay);
+
+        let sessionNum = 0;
+        for(let i=0;i<=rowIndex;i++){ if(day.rows[i].type==='session') sessionNum++; }
+
+        const tdSes = document.createElement('td');
+        tdSes.className='sescell';
+        tdSes.textContent = row.type==='session' ? sessionNum : '-';
+        tr.appendChild(tdSes);
+
+        const tdTime = document.createElement('td');
+        tdTime.className='timecell';
+        const t = dayTimes[rowIndex];
+        const timeTxt = t ? `${t.start} - ${t.end}` : '—';
+        tdTime.innerHTML = `${timeTxt}${row.label ? `<span class="lbl">${row.label}</span>` : ''}`;
+        tr.appendChild(tdTime);
+
+        if(row.type==='other'){
+          const td = document.createElement('td');
+          td.className='blockcell'; td.colSpan = state.classes.length;
+          tr.appendChild(td);
+        } else {
+          state.classes.forEach(cls=>{
+            const td = document.createElement('td');
+            const cell = state.schedule[day.id] && state.schedule[day.id][rowIndex] ? state.schedule[day.id][rowIndex][cls.id] : null;
+            const isPiket = !!(cell && piketCodes.has(cell.teacherCode));
+            td.className = 'classcell' + (cell?'':' empty') + (cell && !isPiket ? ' piket-dim' : '');
+            if(cell){
+              const ct = state.teachers.find(tt=>tt.code===cell.teacherCode);
+              const fill = document.createElement('div');
+              fill.className='fill';
+              fill.style.background = ct ? ct.color : '#555';
+              fill.innerHTML = `${ct?('#'+ct.code):'?'}<small>${cell.subject}</small>`;
+              td.appendChild(fill);
+              td.title = `${ct?ct.name:'?'} — ${cell.subject} (${cls.name})`;
+            }
+            tr.appendChild(td);
+          });
+        }
+        tbody.appendChild(tr);
+      });
+    }
+    table.appendChild(tbody);
+    tableWrap.appendChild(table);
+  }
+
+  function buildSide(){
+    side.innerHTML = '';
+    const h = document.createElement('h2'); h.textContent = 'Pilih Guru Piket'; h.style.fontSize='19px';
+    side.appendChild(h);
+
+    const tabs = document.createElement('div');
+    tabs.className = 'day-tabs';
+    state.days.forEach(d=>{
+      const t = document.createElement('div');
+      t.className = 'day-tab' + (state.piketDayTab===d.id ? ' active':'');
+      t.textContent = d.name;
+      t.onclick = ()=>{ state.piketDayTab = d.id; buildSide(); buildTable(); };
+      tabs.appendChild(t);
+    });
+    side.appendChild(tabs);
+
+    const day = state.days.find(d=>d.id===state.piketDayTab);
+    if(!day) return;
+    const ranked = computeTeacherDayHours(day);
+    const sel = getPiketSelection(day.id);
+    const n = Math.max(1, state.piketCount||6);
+
+    const p = document.createElement('p'); p.className='sub'; p.style.margin='0 0 12px';
+    p.innerHTML = `Klik guru untuk memilih/melepas sebagai petugas piket <b style="color:var(--gold-soft);">${day.name}</b>. Terurut dari jam mengajar paling sedikit. Terpilih: <b style="color:${sel.length===n?'var(--good)':'var(--warn)'};">${sel.length} / ${n}</b>.`;
+    side.appendChild(p);
+
+    const quickRow = document.createElement('div');
+    quickRow.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;';
+    quickRow.innerHTML = `<button class="btn ghost sm" id="piketAutoFill">✨ Isi Otomatis (${n} Tersedikit)</button><button class="btn ghost sm" id="piketClearDay">✕ Kosongkan Hari Ini</button>`;
+    side.appendChild(quickRow);
+    quickRow.querySelector('#piketAutoFill').onclick = ()=>{ autoFillPiketDay(day.id); buildSide(); buildTable(); };
+    quickRow.querySelector('#piketClearDay').onclick = ()=>{ clearPiketDay(day.id); buildSide(); buildTable(); };
+
+    if(ranked.length===0){
+      side.innerHTML += `<div class="preview-empty-note">Belum ada guru untuk hari ini.</div>`;
+      return;
+    }
+
+    const list = document.createElement('div');
+    list.className = 'piket-list-panel';
+    ranked.forEach((r, idx)=>{
+      const isPiket = sel.includes(r.teacher.code);
+      const row = document.createElement('div');
+      row.className = 'piket-row' + (isPiket ? ' on' : '');
+      row.style.cursor = 'pointer';
+      row.innerHTML = `
+        <div class="who">
+          <span class="rank">${idx+1}</span>
+          <span class="nm">${r.teacher.name}</span>
+          <span class="code" style="background:${r.teacher.color}22;color:${r.teacher.color};">#${r.teacher.code}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="hrs">${r.hours} jam</span>
+          ${isPiket ? '<span class="piket-badge">Piket</span>' : ''}
+        </div>
+      `;
+      row.onclick = ()=>{ togglePiketTeacher(day.id, r.teacher.code); buildSide(); buildTable(); };
+      list.appendChild(row);
+    });
+    side.appendChild(list);
+  }
+
+  buildTable();
+  buildSide();
+
+  countField.querySelector('#piketCountInput').addEventListener('input', (e)=>{
+    const v = parseInt(e.target.value);
+    state.piketCount = (v && v>0) ? v : 1;
+    buildSide();
+  });
+
+  return wrap;
+}
+
+/* ---- Export Jadwal Piket ke Excel ----
+   Satu sheet, satu bagian per hari: daftar guru piket terpilih
+   beserta kode & jam mengajarnya hari itu (sebagai referensi
+   beban guru tersebut). Hari tanpa guru piket terpilih dilewati. */
+function buildPiketSheet(){
+  const rows = [];
+  rows.push(['JADWAL PIKET GURU SMA SANTA MARIA 2026']);
+  rows.push([]);
+  rows.push([]);
+  const merges = [ {s:{r:0,c:0}, e:{r:1,c:3}} ];
+
+  const headerRowIndexes = [];
+  state.days.forEach(day=>{
+    const sel = getPiketSelection(day.id);
+    if(sel.length===0) return;
+    const ranked = computeTeacherDayHours(day);
+    const hoursByCode = {};
+    ranked.forEach(r=>{ hoursByCode[r.teacher.code] = r.hours; });
+
+    rows.push([`Hari ${day.name}`]);
+    headerRowIndexes.push(rows.length);
+    rows.push(['No','Kode','Nama Guru','Jam Mengajar Hari Ini']);
+    sel.forEach((code, i)=>{
+      const t = state.teachers.find(tt=>tt.code===code);
+      rows.push([i+1, '#'+code, t?t.name:'?', hoursByCode[code]!==undefined?hoursByCode[code]:0]);
+    });
+    rows.push([]);
+  });
+
+  if(rows.length<=3){
+    return null; // no piket selections anywhere
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!merges'] = merges;
+  ws['!cols'] = [{wch:6},{wch:8},{wch:26},{wch:20}];
+  return ws;
+}
+
+function doExportPiketExcel(){
+  if(typeof XLSX === 'undefined'){
+    toast('Gagal memuat pustaka Excel. Periksa koneksi internet Anda dan coba lagi.', 'err');
+    return;
+  }
+  const ws = buildPiketSheet();
+  if(!ws){
+    toast('Belum ada guru piket yang dipilih. Pilih minimal satu guru pada salah satu hari terlebih dahulu.', 'err');
+    return;
+  }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Jadwal Piket');
+  const fname = 'jadwal-piket-sma-santa-maria.xlsx';
+  XLSX.writeFile(wb, fname);
+  toast(`File Excel "${fname}" berhasil diunduh.`, 'ok');
 }
 
 function isCellJoined(dayId, rowIndex, classId){
