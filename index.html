@@ -170,6 +170,17 @@ input.invalid{border-color:var(--danger)!important;}
 .rowcfg-table td{padding:6px 8px;vertical-align:middle;}
 .rowcfg-table tr:hover td{background:rgba(255,255,255,.02);}
 .rowcfg-table select, .rowcfg-table input{padding:7px 9px;font-size:13.5px;}
+.rowcfg-table tr{transition:background .12s;}
+.rowcfg-table tr.dragging{opacity:.35;}
+.rowcfg-table tr.drag-over-top td{box-shadow: inset 0 2px 0 0 var(--rose);}
+.rowcfg-table tr.drag-over-bottom td{box-shadow: inset 0 -2px 0 0 var(--rose);}
+.drag-handle{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:22px;height:22px;border-radius:6px;cursor:grab;
+  color:var(--muted-2);font-size:15px;user-select:none;touch-action:none;
+}
+.drag-handle:hover{color:var(--rose-light);background:rgba(194,60,102,.12);}
+.drag-handle:active{cursor:grabbing;}
 .badge-num{
   width:26px;height:26px;border-radius:50%;background:var(--rose-deep);color:#fff;
   display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;
@@ -1046,7 +1057,7 @@ function renderStep2(){
     }
     const h = document.createElement('h2'); h.textContent = 'Struktur Sesi per Hari';
     const p = document.createElement('p'); p.className='sub';
-    p.textContent = 'Susun urutan baris untuk setiap hari: sesi pembelajaran (bernomor otomatis) atau baris non-sesi seperti istirahat/doa (ditandai "-"). Cukup atur jam mulai sesi paling awal dan durasi (menit) tiap baris — jam berikutnya dihitung otomatis.';
+    p.textContent = 'Susun urutan baris untuk setiap hari: sesi pembelajaran (bernomor otomatis) atau baris non-sesi seperti istirahat/doa (ditandai "-"). Cukup atur jam mulai sesi paling awal dan durasi (menit) tiap baris — jam berikutnya dihitung otomatis. Seret ikon ⠿ untuk menukar urutan baris; jam akan otomatis tersinkron ulang.';
     card2.appendChild(h); card2.appendChild(p);
 
     const tabs = document.createElement('div');
@@ -1076,7 +1087,7 @@ function renderStep2(){
 
     const table = document.createElement('table');
     table.className = 'rowcfg-table';
-    table.innerHTML = `<thead><tr><th style="width:50px;">No.</th><th style="width:120px;">Jenis</th><th>Label</th><th style="width:130px;">Durasi (menit)</th><th style="width:150px;">Jam (otomatis)</th><th style="width:36px;"></th></tr></thead>`;
+    table.innerHTML = `<thead><tr><th style="width:28px;"></th><th style="width:50px;">No.</th><th style="width:120px;">Jenis</th><th>Label</th><th style="width:130px;">Durasi (menit)</th><th style="width:150px;">Jam (otomatis)</th><th style="width:36px;"></th></tr></thead>`;
     const tbody = document.createElement('tbody');
     table.appendChild(tbody);
 
@@ -1092,6 +1103,11 @@ function renderStep2(){
     day.rows.forEach((row, idx)=>{
       if(row.type==='session') sessionCounter++;
       const tr = document.createElement('tr');
+      tr.dataset.idx = idx;
+
+      const tdHandle = document.createElement('td');
+      tdHandle.innerHTML = `<span class="drag-handle" draggable="true" title="Seret untuk menukar urutan">⠿</span>`;
+      tr.appendChild(tdHandle);
 
       const tdNum = document.createElement('td');
       tdNum.innerHTML = row.type==='session' ? `<span class="badge-num">${sessionCounter}</span>` : `<span class="badge-dash">–</span>`;
@@ -1130,13 +1146,81 @@ function renderStep2(){
       const tdRm = document.createElement('td');
       const rmBtn = document.createElement('button');
       rmBtn.className='icon-btn'; rmBtn.textContent='✕';
-      rmBtn.onclick = ()=>{ day.rows.splice(idx,1); renderInner(); };
+      rmBtn.onclick = ()=>{
+        const removingHasData = row.type==='session' && state.schedule[day.id] && state.schedule[day.id][idx]
+          && Object.keys(state.schedule[day.id][idx]).length>0;
+        if(removingHasData && !confirm('Baris ini sudah punya jadwal terisi. Hapus baris ini beserta jadwal yang sudah diisi di dalamnya?')) return;
+        day.rows.splice(idx,1);
+        // keep state.schedule[day.id] indices aligned 1:1 with day.rows
+        if(state.schedule[day.id]) state.schedule[day.id].splice(idx,1);
+        renderInner();
+      };
       tdRm.appendChild(rmBtn);
       tr.appendChild(tdRm);
 
       tbody.appendChild(tr);
     });
     refreshTimesColumn();
+
+    // ---- drag & drop reordering: dragging a row moves it in day.rows,
+    // and since computeDayTimes() cascades durations in array order,
+    // all times re-sync automatically on the next renderInner(). ----
+    let dragSrcIdx = null;
+    tbody.addEventListener('dragstart', (e)=>{
+      const handle = e.target.closest('.drag-handle');
+      if(!handle) return;
+      const tr = handle.closest('tr');
+      if(!tr) return;
+      dragSrcIdx = parseInt(tr.dataset.idx);
+      tr.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      try{ e.dataTransfer.setData('text/plain', String(dragSrcIdx)); }catch(err){}
+    });
+    tbody.addEventListener('dragend', ()=>{
+      tbody.querySelectorAll('tr').forEach(r=>r.classList.remove('dragging','drag-over-top','drag-over-bottom'));
+      dragSrcIdx = null;
+    });
+    tbody.addEventListener('dragover', (e)=>{
+      if(dragSrcIdx===null) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const tr = e.target.closest('tr');
+      if(!tr) return;
+      tbody.querySelectorAll('tr').forEach(r=>r.classList.remove('drag-over-top','drag-over-bottom'));
+      const rect = tr.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height/2;
+      tr.classList.add(before ? 'drag-over-top' : 'drag-over-bottom');
+    });
+    tbody.addEventListener('drop', (e)=>{
+      if(dragSrcIdx===null) return;
+      e.preventDefault();
+      const tr = e.target.closest('tr');
+      if(!tr){ dragSrcIdx=null; return; }
+      const targetIdx = parseInt(tr.dataset.idx);
+      const rect = tr.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height/2;
+      let insertIdx = before ? targetIdx : targetIdx + 1;
+      if(insertIdx === dragSrcIdx || insertIdx === dragSrcIdx+1){ dragSrcIdx=null; renderInner(); return; }
+      // Move the row itself...
+      const [moved] = day.rows.splice(dragSrcIdx, 1);
+      let insertIdxRows = insertIdx;
+      if(dragSrcIdx < insertIdxRows) insertIdxRows--; // account for the removed slot shifting indices
+      day.rows.splice(insertIdxRows, 0, moved);
+      // ...and apply the EXACT same splice to state.schedule[day.id], so each
+      // row's already-filled teacher/subject assignments travel with it
+      // instead of staying stuck at the old array position (which would make
+      // them appear under whatever row now occupies that old slot, or look
+      // like they vanished).
+      if(!state.schedule[day.id]) state.schedule[day.id] = day.rows.map(()=>({}));
+      const schedArr = state.schedule[day.id];
+      while(schedArr.length < day.rows.length + 1) schedArr.push({}); // safety pad before splice
+      const [movedCells] = schedArr.splice(dragSrcIdx, 1);
+      let insertIdxSched = insertIdx;
+      if(dragSrcIdx < insertIdxSched) insertIdxSched--;
+      schedArr.splice(insertIdxSched, 0, movedCells || {});
+      dragSrcIdx = null;
+      renderInner();
+    });
 
     card2.appendChild(table);
 
