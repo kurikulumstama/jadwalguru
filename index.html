@@ -273,9 +273,6 @@ td.classcell.conflict .fill{
   0%,100%{ background-color:var(--danger); }
   50%{ background-color:var(--warn); }
 }
-td.classcell.joined::before{
-  content:"⛓";position:absolute;top:2px;right:3px;font-size:8px;color:var(--gold-soft);
-}
 
 /* Side panel */
 .side-card{position:sticky;top:100px;}
@@ -374,6 +371,31 @@ td.classcell.pv-hot{
 }
 td.classcell.pv-hot .fill{box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);}
 .preview-empty-note{color:var(--muted-2);font-size:12.5px;text-align:center;padding:14px 0;border:1px dashed var(--border-soft);border-radius:10px;margin-top:10px;}
+
+/* Teacher code toggle grid (Preview Lengkap) */
+.teacher-code-grid{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0;}
+.teacher-code-btn{
+  width:46px;height:46px;border-radius:10px;border:2px solid var(--border);
+  background:var(--bg-2);color:var(--muted);font-family:'JetBrains Mono',monospace;
+  font-weight:700;font-size:12.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:transform .12s, border-color .12s, background .12s, color .12s, box-shadow .12s;
+  user-select:none;
+}
+.teacher-code-btn:hover{transform:translateY(-1px);}
+.teacher-code-btn.active{color:#fff;border-color:transparent;box-shadow:0 6px 16px -6px rgba(0,0,0,.65);}
+
+/* Compact schedule table used on Preview Lengkap so it fits one screen */
+.sched-table-wrap.compact{max-height:calc(100vh - 210px);}
+table.sched.compact th, table.sched.compact td{font-size:10px;}
+table.sched.compact thead th{padding:6px 4px;}
+table.sched.compact td.daycell{padding:5px 2px;font-size:10.5px;}
+table.sched.compact td.sescell{min-width:24px;font-size:9.5px;}
+table.sched.compact td.timecell{font-size:9px;padding:3px 4px;}
+table.sched.compact td.timecell .lbl{font-size:8.5px;}
+table.sched.compact td.classcell{min-width:38px;height:26px;}
+table.sched.compact td.classcell .fill{font-size:9.5px;}
+table.sched.compact td.classcell .fill small{font-size:7.5px;}
+table.sched.compact td.blockcell{min-width:38px;}
 
 /* ---------- Rekap Guru (teacher distribution) Stage ---------- */
 .distrib-daybar-list{display:flex;flex-direction:column;gap:12px;margin-top:14px;}
@@ -512,12 +534,11 @@ const state = {
   days: [],               // {id, name, rows:[{id,type:'session'|'other',label,start,end}]}
   teachers: [],           // {code, name, color, subjects:[{id, subject, classId, hours, used}]}
   schedule: {},            // schedule[dayId][rowIndex][classId] = {teacherCode, subject, assignId, batchId}
-  joinGroups: {},          // joinGroups["dayId_rowIndex"] = [ [classId,classId,...], ... ]
   activeTeacherCode: null,
   activeAssignId: null,
   blockSize: 1,
   activeDayTab: null,
-  previewSelection: null,  // assignId of the guru+mapel+kelas currently spotlighted on the full preview stage
+  previewSelection: [],    // array of teacherCode currently spotlighted on the full preview stage (multi-select)
   distribusiTeacherCode: null, // teacher code currently selected on the "Rekap Guru" distribution stage
   piketDayTab: null,       // day currently selected on the "Jadwal Piket" stage
   piketCount: 6,           // target jumlah guru piket per hari (untuk info & isi-otomatis)
@@ -571,7 +592,6 @@ function serializeState(){
       days: state.days,
       teachers: state.teachers,
       schedule: state.schedule,
-      joinGroups: state.joinGroups,
       activeTeacherCode: state.activeTeacherCode,
       activeAssignId: state.activeAssignId,
       blockSize: state.blockSize,
@@ -595,9 +615,9 @@ function applyLoadedData(obj){
   delete state._tempClasses;
   Object.keys(state).forEach(k=>{ if(!(k in obj.state)) delete state[k]; });
   Object.assign(state, obj.state);
-  if(obj.uidCounter) uidCounter = Math.max(uidCounter, obj.uidCounter);
   if(!state.piketCount) state.piketCount = 6;
   if(!state.piketSelections || typeof state.piketSelections!=='object') state.piketSelections = {};
+  if(!Array.isArray(state.previewSelection)) state.previewSelection = [];
   state.days.forEach(d=>{
     if(!state.schedule[d.id]) state.schedule[d.id] = d.rows.map(()=>({}));
     while(state.schedule[d.id].length < d.rows.length) state.schedule[d.id].push({});
@@ -1734,8 +1754,7 @@ function renderStep4(){
             const td = document.createElement('td');
             const cell = (state.schedule[day.id] && state.schedule[day.id][rowIndex]) ? state.schedule[day.id][rowIndex][cls.id] : null;
             const isConflict = conflictKey(day.id, rowIndex, cls.id);
-            const isJoined = isCellJoined(day.id, rowIndex, cls.id);
-            td.className = 'classcell' + (cell?'':' empty') + (isConflict?' conflict':'') + (isJoined?' joined':'');
+            td.className = 'classcell' + (cell?'':' empty') + (isConflict?' conflict':'');
             if(cell){
               const t = state.teachers.find(t=>t.code===cell.teacherCode);
               const fill = document.createElement('div');
@@ -1836,7 +1855,12 @@ function renderStep4(){
     });
     side.appendChild(legend);
 
-    // conflicts
+    // conflicts — a teacher placed in more than one class in the same
+    // session slot always shows here. There is no "join classes" override
+    // anymore: joining used to be able to silently suppress a conflict
+    // that later became real again after the schedule changed, which was
+    // confusing. Now the only fix offered is removing one of the clashing
+    // placements, so the alert always reflects the actual current schedule.
     const conflicts = computeConflicts();
     const cbox = document.createElement('div');
     if(conflicts.length){
@@ -1849,16 +1873,8 @@ function renderStep4(){
         item.className = 'conflict-item';
         item.innerHTML = `<div class="txt">Guru <b>#${c.teacherCode} ${t?t.name:''}</b> bertugas di lebih dari satu kelas pada <span class="g">${c.dayName}, sesi ${c.sessionNum}</span>: ${c.classIds.map(classNameById).join(' &amp; ')}.</div>
           <div class="act">
-            <button class="btn sm gold" data-act="join">Gabungkan Kelas (Join)</button>
             <button class="btn sm danger" data-act="clear">Hapus Salah Satu</button>
           </div>`;
-        item.querySelector('[data-act=join]').onclick = ()=>{
-          const key = c.dayId+'_'+c.rowIndex;
-          state.joinGroups[key] = state.joinGroups[key] || [];
-          state.joinGroups[key].push(c.classIds.slice());
-          toast('Kelas digabungkan. Konflik ditandai selesai.', 'ok');
-          renderStep4Refresh();
-        };
         item.querySelector('[data-act=clear]').onclick = ()=>{
           // remove the placement in the last class of the conflict for this teacher/row
           const targetClass = c.classIds[c.classIds.length-1];
@@ -1995,9 +2011,10 @@ function renderStep4(){
 
 /* =========================================================
    STEP 5 : FULL PREVIEW
-   Lihat ulang seluruh jadwal. Pilih satu kombinasi guru + mapel
-   + kelas lewat tombol di panel samping — sel yang cocok akan
-   menyala terang, sel terisi lainnya jadi semi redup (grayed out).
+   Lihat ulang seluruh jadwal dalam tampilan ringkas (fit satu
+   layar). Panel samping hanya menampilkan tombol KODE guru
+   (bisa multi-pilih) — kelas yang diajar guru terpilih menyala,
+   sisanya diredupkan.
 ========================================================= */
 function renderStep5(){
   const wrap = document.createElement('div');
@@ -2008,7 +2025,7 @@ function renderStep5(){
   wrap.appendChild(layout);
 
   const tableWrap = document.createElement('div');
-  tableWrap.className = 'sched-table-wrap';
+  tableWrap.className = 'sched-table-wrap compact';
   layout.appendChild(tableWrap);
 
   const side = document.createElement('div');
@@ -2021,19 +2038,12 @@ function renderStep5(){
   backBtn.innerHTML = `<div><button class="btn ghost" id="back5">← Kembali ke Susun Jadwal</button></div><div class="right"><button class="btn gold" id="next5">Rekap Guru →</button></div>`;
   wrap.appendChild(backBtn);
 
-  function currentSelection(){
-    if(!state.previewSelection) return null;
-    for(const t of state.teachers){
-      const sub = t.subjects.find(s=>s.id===state.previewSelection);
-      if(sub) return {teacher:t, sub};
-    }
-    return null;
-  }
+  if(!Array.isArray(state.previewSelection)) state.previewSelection = [];
 
   function buildTable(){
     tableWrap.innerHTML = '';
     const table = document.createElement('table');
-    table.className = 'sched';
+    table.className = 'sched compact';
     const thead = document.createElement('thead');
     const headRow = document.createElement('tr');
     headRow.innerHTML = `<th class="corner" style="left:0;position:sticky;">Hari</th><th class="corner" style="left:38px;position:sticky;">Sesi</th><th class="corner" style="left:76px;position:sticky;">Jam</th>`;
@@ -2041,7 +2051,7 @@ function renderStep5(){
     thead.appendChild(headRow);
     table.appendChild(thead);
 
-    const sel = currentSelection();
+    const activeCodes = state.previewSelection;
     const tbody = document.createElement('tbody');
 
     state.days.forEach(day=>{
@@ -2076,13 +2086,12 @@ function renderStep5(){
           state.classes.forEach(cls=>{
             const td = document.createElement('td');
             const cell = (state.schedule[day.id] && state.schedule[day.id][rowIndex]) ? state.schedule[day.id][rowIndex][cls.id] : null;
-            const isJoined = isCellJoined(day.id, rowIndex, cls.id);
             let stateClass = '';
-            if(sel && cell){
-              const isHot = cell.assignId === sel.sub.id;
+            if(activeCodes.length && cell){
+              const isHot = activeCodes.includes(cell.teacherCode);
               stateClass = isHot ? ' pv-hot' : ' pv-dim';
             }
-            td.className = 'classcell' + (cell?'':' empty') + (isJoined?' joined':'') + stateClass;
+            td.className = 'classcell' + (cell?'':' empty') + stateClass;
             if(cell){
               const ct = state.teachers.find(tt=>tt.code===cell.teacherCode);
               const fill = document.createElement('div');
@@ -2107,43 +2116,46 @@ function renderStep5(){
     const h = document.createElement('h2'); h.textContent = 'Preview Lengkap'; h.style.fontSize='19px';
     side.appendChild(h);
     const p = document.createElement('p'); p.className='sub';
-    p.textContent = 'Pilih salah satu guru + mata pelajaran + kelas di bawah ini untuk menyorotinya pada tabel jadwal. Penempatan lain akan diredupkan agar mudah ditinjau ulang.';
+    p.textContent = 'Klik satu atau beberapa kode guru untuk menyorot blok jadwal mereka pada tabel. Guru yang tidak dipilih akan diredupkan. Klik lagi untuk melepas pilihan.';
     side.appendChild(p);
 
     const teachers = sortedTeachers();
-    if(teachers.length===0 || teachers.every(t=>t.subjects.length===0)){
-      side.innerHTML += `<div class="preview-empty-note">Belum ada penugasan guru/mapel untuk ditinjau.</div>`;
+    if(teachers.length===0){
+      side.innerHTML += `<div class="preview-empty-note">Belum ada data guru.</div>`;
       return;
     }
 
-    const list = document.createElement('div');
-    list.className = 'preview-pick-list';
+    const grid = document.createElement('div');
+    grid.className = 'teacher-code-grid';
     teachers.forEach(t=>{
-      if(t.subjects.length===0) return;
-      const group = document.createElement('div');
-      group.className = 'preview-pick-group';
-      group.innerHTML = `<div class="grp-title"><span class="sw" style="background:${t.color};"></span>#${t.code} ${t.name}</div>`;
-      t.subjects.forEach(sub=>{
-        const btn = document.createElement('div');
-        btn.className = 'preview-pick-btn' + (state.previewSelection===sub.id ? ' sel' : '');
-        btn.innerHTML = `<span class="lbl">${sub.subject}</span><span class="cls">${classNameById(sub.classId)}</span>`;
-        btn.onclick = ()=>{
-          state.previewSelection = (state.previewSelection===sub.id) ? null : sub.id;
-          buildSide();
-          buildTable();
-        };
-        group.appendChild(btn);
-      });
-      list.appendChild(group);
+      const active = state.previewSelection.includes(t.code);
+      const btn = document.createElement('div');
+      btn.className = 'teacher-code-btn' + (active ? ' active' : '');
+      btn.textContent = '#'+t.code;
+      btn.title = t.name;
+      if(active){
+        btn.style.background = t.color;
+        btn.style.borderColor = t.color;
+      } else {
+        btn.style.borderColor = t.color + '55';
+        btn.style.color = t.color;
+      }
+      btn.onclick = ()=>{
+        const idx = state.previewSelection.indexOf(t.code);
+        if(idx>=0) state.previewSelection.splice(idx,1); else state.previewSelection.push(t.code);
+        buildSide();
+        buildTable();
+      };
+      grid.appendChild(btn);
     });
-    side.appendChild(list);
+    side.appendChild(grid);
 
     const clearRow = document.createElement('div');
     clearRow.className = 'preview-clear-row';
     clearRow.innerHTML = `<button class="btn ghost sm" id="pvClear">✕ Tampilkan Semua (Reset)</button>`;
     side.appendChild(clearRow);
     clearRow.querySelector('#pvClear').onclick = ()=>{
-      state.previewSelection = null;
+      state.previewSelection = [];
       buildSide();
       buildTable();
     };
@@ -2685,13 +2697,6 @@ function doExportPiketExcel(){
   toast(`File Excel "${fname}" berhasil diunduh.`, 'ok');
 }
 
-function isCellJoined(dayId, rowIndex, classId){
-  const key = dayId+'_'+rowIndex;
-  const groups = state.joinGroups[key];
-  if(!groups) return false;
-  return groups.some(g=>g.includes(classId));
-}
-
 function computeConflicts(){
   const conflicts = [];
   state.days.forEach(day=>{
@@ -2708,15 +2713,14 @@ function computeConflicts(){
       let sessionNum = 0;
       for(let i=0;i<=rowIndex;i++){ if(day.rows[i].type==='session') sessionNum++; }
 
+      // Any teacher assigned to 2+ classes in the same session slot is
+      // always reported — there is no way to mark a conflict as
+      // "resolved via joined classes" anymore, so the alert can never
+      // go stale relative to the actual schedule.
       Object.keys(teacherMap).forEach(code=>{
         const classIds = teacherMap[code];
         if(classIds.length<2) return;
-        const key = day.id+'_'+rowIndex;
-        const groups = state.joinGroups[key] || [];
-        const covered = groups.some(g=> classIds.every(cid=>g.includes(cid)) );
-        if(!covered){
-          conflicts.push({dayId: day.id, dayName: day.name, rowIndex, sessionNum, teacherCode: parseInt(code), classIds});
-        }
+        conflicts.push({dayId: day.id, dayName: day.name, rowIndex, sessionNum, teacherCode: parseInt(code), classIds});
       });
     });
   });
